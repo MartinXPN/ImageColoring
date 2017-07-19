@@ -53,11 +53,11 @@ class DiscriminatorRealGenerator(BaseBatchGenerator):
         super(DiscriminatorRealGenerator, self).__init__(image_paths, batch_size, image_height, image_width, shuffle)
         
     def generate_one(self, path):
+        image = io.imread(path)
+        image = resize(image, output_shape=(self.image_height, self.image_width, 3))
         image_gray = load_img(path, grayscale=True, target_size=(self.image_height, self.image_width))
-        x = np.zeros((self.image_height, self.image_width, 3))
+        x = color.rgb2lab(image)
         x[:,:,0] = image_gray - greyscale_image_mean
-        x[:,:,1] = image_gray - greyscale_image_mean
-        x[:,:,2] = image_gray - greyscale_image_mean
         y = True
         
         return x, y
@@ -72,11 +72,11 @@ class ColorizerBatchGenerator(BaseBatchGenerator):
 
         
     def generate_one(self, path):
-        image = io.imread(path)
-        image = resize(image, output_shape=(self.image_height, self.image_width, 3))
         image_gray = load_img(path, grayscale=True, target_size=(self.image_height, self.image_width))
-        x = color.rgb2lab(image)
+        x = np.zeros((self.image_height, self.image_width, 3))
         x[:,:,0] = image_gray - greyscale_image_mean
+        x[:,:,1] = image_gray - greyscale_image_mean
+        x[:,:,2] = image_gray - greyscale_image_mean
         y = self.get_label()
         
         return x, y
