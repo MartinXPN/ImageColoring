@@ -57,7 +57,8 @@ class DiscriminatorRealGenerator(BaseBatchGenerator):
         image = resize(image, output_shape=(self.image_height, self.image_width, 3))
         image_gray = load_img(path, grayscale=True, target_size=(self.image_height, self.image_width))
         x = color.rgb2lab(image)
-        x[:,:,0] = image_gray - greyscale_image_mean
+        x /= 128.                                     # scale a,b space to (-1;1)
+        x[:,:,0] = image_gray - greyscale_image_mean  # first channel is simply the grayscale verison of image
         y = True
         
         return x, y
