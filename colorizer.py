@@ -73,11 +73,12 @@ def create_colorizer(input_shape=(None, None, 3)):
     
     # Decoder 1
     merged = concatenate([d23, e13])
-    d11 = Deconvolution2D(32, (3, 3), activation='relu', padding='valid', name='block1_deconv1')(merged)
-    d12 = Deconvolution2D(32, (4, 4), strides=2, activation='relu', padding='valid', name='block1_deconv2')(d11)
-    
-    d01 = Conv2D(16, (3, 3), activation='relu',    padding='valid', name='out1')(d12)
-    out = Conv2D(2, (5, 5), activation='tanh', padding='valid', name='out2')(d01)
+    d11 = Conv2D(32, (3, 3), activation='relu', padding='same', name='block1_deconv1')(merged)
+    d12 = Conv2D(32, (3, 3), activation='relu', padding='same', name='block1_deconv2')(d11)
+    d13 = UpSampling2D((2, 2), name='block1_upsample')(d12)
+
+    d01 = Conv2D(16, (3, 3), activation='relu',    padding='same', name='out1')(d13)
+    out = Conv2D(2, (3, 3), activation='tanh', padding='same', name='out2')(d01)
 
 
     
