@@ -10,6 +10,10 @@ image_mean = (103.939, 116.779, 123.68)
 greyscale_image_mean = np.mean(image_mean)
 
 
+def unzip(iterable):
+    return zip(*iterable)
+
+
 class BaseBatchGenerator(object):
     
     def __init__(self, image_paths, batch_size, image_height, image_width, shuffle):
@@ -26,6 +30,7 @@ class BaseBatchGenerator(object):
         with self.lock:
             batch_inputs = []
             batch_labels   = []
+            batch_image_labels = []
 
             for i in range(self.batch_size):
                 path = self.image_paths[self.index]
@@ -38,7 +43,12 @@ class BaseBatchGenerator(object):
                 if self.index >= len(self.image_paths):
                     self.index = 0
             
-            return np.array(batch_inputs), np.array(batch_labels)
+            try:
+                return np.array(batch_inputs), np.array(batch_labels)
+            except:
+                batch_labels, batch_image_labels = unzip(batch_labels)
+                return np.array(batch_inputs), np.array(batch_labels), np.array(batch_image_labels)
+
     
     def generate_one(self, path):
         raise NotImplementedError("Please Implement this method")
@@ -78,9 +88,13 @@ class ColorizerBatchGenerator(BaseBatchGenerator):
         x[:,:,0] = image_gray - greyscale_image_mean
         x[:,:,1] = image_gray - greyscale_image_mean
         x[:,:,2] = image_gray - greyscale_image_mean
-        y = self.get_label()
+        y = (self.get_label(), self.get_generator_image_label(path))
         
         return x, y
+    
+    def get_generator_image_label(self, path, output_shape=(224, 224, 3)):
+        rgb = resize( io.imread(path), output_shape=output_shape )
+        return color.rgb2lab(rgb)[...,1:] / 128.
    
     def get_label(self):
         return True

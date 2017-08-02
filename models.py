@@ -1,13 +1,16 @@
+from keras.models import Model
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Dense, concatenate
+from keras.layers.advanced_activations import LeakyReLU
+from keras.layers.normalization import BatchNormalization
+from keras.utils.data_utils import get_file
+from slice import Slice
+
+
+
 VGG_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def create_colorizer(input_shape=(None, None, 3)):
-    
-    from keras.models import Model
-    from keras.layers import Input, Conv2D, MaxPooling2D, Deconvolution2D, UpSampling2D, concatenate
-    from keras.layers.core import Lambda
-    from keras.utils.data_utils import get_file
-
 
     # Determine proper input shape
     inputs = Input(shape=input_shape)
@@ -93,3 +96,105 @@ def create_colorizer(input_shape=(None, None, 3)):
     
     model = Model(inputs, out, name='colorizer')
     return model, vgg16
+
+
+
+
+def create_discriminator(input_shape=(224, 224, 3)):
+    
+    inputs = Input(shape=input_shape)
+    
+    # Block 1
+    x = Conv2D(64, (3, 3), activation=None, padding='valid')(inputs)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(64, (3, 3), strides=(2, 2), activation=None, padding='valid')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU()(x)
+
+    
+    # Block 2
+    x = Conv2D(128, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(128, (3, 3), strides=(2, 2), activation=None, padding='valid')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU()(x)
+
+    
+    # Block 3
+    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(256, (3, 3), strides=(2, 2), activation=None, padding='valid')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU()(x)
+
+    
+    # Block 4
+    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU()(x)
+
+    
+    # Block 5
+    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(128, (3, 3), activation=None, padding='valid')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(128, (3, 3), activation=None, padding='valid')(x)
+    x = LeakyReLU()(x)
+    
+    x = Conv2D(64, (3, 3), activation=None, padding='valid')(x)
+    x = BatchNormalization()(x)
+    x = LeakyReLU()(x)
+
+    
+    
+    x = Flatten(name='flatten')(x)
+    x = Dense(512, activation=None, name='fc1')(x)
+    x = LeakyReLU()(x)
+    out = Dense(1, activation='sigmoid', name='out')(x)
+    
+    model = Model(inputs, out, name='discriminator')
+    return model
+
+
+
+
+
+
+
+def create_GAN(generator, discriminator):
+    generator_trainable_layers     = [layer for layer in generator.layers if layer.trainable]
+    discriminator_trainable_layers = [layer for layer in discriminator.layers if layer.trainable]
+
+    network_input = Input(shape=(224, 224, 3))
+    generator_output = generator(network_input)
+
+    lightness = Slice(slice(0, 1), axis=3) (network_input)
+    lab = concatenate([lightness, generator_output])
+    network_output = discriminator(lab)
+
+    GAN = Model(network_input, outputs=[network_output, generator_output])
+    return GAN, generator_trainable_layers, discriminator_trainable_layers
+
