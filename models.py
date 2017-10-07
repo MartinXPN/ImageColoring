@@ -4,7 +4,7 @@ from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.normalization import BatchNormalization
 from keras.utils.data_utils import get_file
 from slice import Slice
-
+import h5py
 
 
 VGG_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5'
@@ -96,8 +96,6 @@ def create_colorizer(input_shape=(None, None, 3)):
     
     model = Model(inputs, out, name='colorizer')
     return model, vgg16
-
-
 
 
 def create_discriminator(input_shape=(224, 224, 3)):
