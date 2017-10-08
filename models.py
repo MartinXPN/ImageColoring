@@ -1,18 +1,15 @@
-from keras.models import Model
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Dense, concatenate
+from keras.activations import relu
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Flatten, Dense, concatenate, Activation
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.normalization import BatchNormalization
+from keras.models import Model
 from keras.utils.data_utils import get_file
-from slice import Slice
-import h5py
-
 
 VGG_WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.1/vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
 def create_colorizer(input_shape=(None, None, 3)):
 
-    # Determine proper input shape
     inputs = Input(shape=input_shape)
     
     # Encoder 1
@@ -81,10 +78,9 @@ def create_colorizer(input_shape=(None, None, 3)):
     d13 = UpSampling2D((2, 2), name='block1_upsample')(d12)
 
     d01 = Conv2D(16, (3, 3), activation='relu',    padding='same', name='out1')(d13)
-    out = Conv2D(2, (3, 3), activation='tanh', padding='same', name='out2')(d01)
+    out = Conv2D(3, (3, 3), activation=None, padding='same', name='out2')(d01)
+    out = Activation(lambda x: relu(x, max_value=255.))(out)
 
-
-    
     # Create model.
     vgg16 = Model(inputs, e54, name='vgg16')
     weights_path = get_file('vgg16_weights_tf_dim_ordering_tf_kernels_notop.h5', VGG_WEIGHTS_PATH_NO_TOP, cache_subdir='models')
@@ -98,88 +94,73 @@ def create_colorizer(input_shape=(None, None, 3)):
     return model, vgg16
 
 
-def create_discriminator(input_shape=(224, 224, 3)):
-    
-    inputs = Input(shape=input_shape)
-    
-    # Block 1
-    x = Conv2D(64, (3, 3), activation=None, padding='valid')(inputs)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(64, (3, 3), strides=(2, 2), activation=None, padding='valid')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU()(x)
+def create_discriminator(input_image_shape=(224, 224, 3), initial_image_shape=(224, 224, 3)):
 
-    
-    # Block 2
-    x = Conv2D(128, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(128, (3, 3), strides=(2, 2), activation=None, padding='valid')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU()(x)
+    assert input_image_shape == initial_image_shape
 
-    
-    # Block 3
-    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(256, (3, 3), strides=(2, 2), activation=None, padding='valid')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU()(x)
+    def Conv2DBatchNormalizationLeakyReLU(input_layer,
+                                          filters,
+                                          kernel_size,
+                                          strides=(1, 1),
+                                          padding='valid',
+                                          alpha=0.3):
+        res = input_layer
+        res = Conv2D(filters=filters, kernel_size=kernel_size, strides=strides, activation=None, padding=padding)(res)
+        res = BatchNormalization()(res)
+        res = LeakyReLU(alpha=alpha)(res)
+        return res
 
-    
-    # Block 4
-    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU()(x)
 
-    
-    # Block 5
-    x = Conv2D(512, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(256, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(128, (3, 3), activation=None, padding='valid')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(128, (3, 3), activation=None, padding='valid')(x)
-    x = LeakyReLU()(x)
-    
-    x = Conv2D(64, (3, 3), activation=None, padding='valid')(x)
-    x = BatchNormalization()(x)
-    x = LeakyReLU()(x)
+    def create_trunk(input_image_shape):
+        inputs = Input(shape=input_image_shape)
 
-    
-    
-    x = Flatten(name='flatten')(x)
-    x = Dense(512, activation=None, name='fc1')(x)
+        # Block 1
+        res = Conv2DBatchNormalizationLeakyReLU(inputs, filters=64, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=64, kernel_size=(3, 3), strides=(2, 2))
+
+        # Block 2
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=128, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=128, kernel_size=(3, 3), strides=(2, 2))
+
+        # Block 3
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=256, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=256, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=256, kernel_size=(3, 3), strides=(1, 1))
+
+        # Block 4
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=512, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=512, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=512, kernel_size=(3, 3), strides=(1, 1))
+
+        # Block 5
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=256, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=256, kernel_size=(3, 3), strides=(1, 1))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=256, kernel_size=(3, 3), strides=(1, 1))
+
+        # Block 6
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=128, kernel_size=(3, 3), strides=(2, 2))
+        res = Conv2DBatchNormalizationLeakyReLU(res, filters=128, kernel_size=(3, 3), strides=(1, 1))
+        return inputs, res
+
+    # Create trunks separately for real/fake input image and for initial black-white image
+    # To extract features from both and then perform a prediction
+    input_image_trunk_input, input_image_trunk_output = create_trunk(input_image_shape)
+    initial_image_trunk_input, initial_image_trunk_output = create_trunk(initial_image_shape)
+
+    # Merge Trunks to make a decision
+    merged_trunks = concatenate([input_image_trunk_output, initial_image_trunk_output])
+    merged_trunks = Conv2DBatchNormalizationLeakyReLU(merged_trunks, filters=64, kernel_size=(3, 3), strides=(1, 1))
+    merged_trunks = Conv2DBatchNormalizationLeakyReLU(merged_trunks, filters=64, kernel_size=(3, 3), strides=(1, 1))
+    merged_trunks = Conv2DBatchNormalizationLeakyReLU(merged_trunks, filters=32, kernel_size=(3, 3), strides=(1, 1))
+    merged_trunks = Conv2DBatchNormalizationLeakyReLU(merged_trunks, filters=16, kernel_size=(3, 3), strides=(1, 1))
+
+    x = Flatten()(merged_trunks)
+    x = Dense(1024, activation=None)(x)
     x = LeakyReLU()(x)
-    out = Dense(1, activation='sigmoid', name='out')(x)
+    out = Dense(1, activation='sigmoid')(x)
     
-    model = Model(inputs, out, name='discriminator')
+    model = Model([input_image_trunk_input, initial_image_trunk_input], out, name='discriminator')
     return model
-
-
-
-
-
 
 
 def create_GAN(generator, discriminator):
@@ -188,11 +169,7 @@ def create_GAN(generator, discriminator):
 
     network_input = Input(shape=(224, 224, 3))
     generator_output = generator(network_input)
-
-    lightness = Slice(slice(0, 1), axis=3) (network_input)
-    lab = concatenate([lightness, generator_output])
-    network_output = discriminator(lab)
+    network_output = discriminator([generator_output, network_input])
 
     GAN = Model(network_input, outputs=[network_output, generator_output])
     return GAN, generator_trainable_layers, discriminator_trainable_layers
-
