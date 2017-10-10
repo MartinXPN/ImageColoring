@@ -39,7 +39,7 @@ class BaseBatchGenerator(object):
                 self.index += 1
                 if self.index >= len(self.image_paths):
                     self.index = 0
-            
+
             return self.get_reshaped_batch(batch_inputs, batch_labels)
 
     def load_gray_image(self, path):
@@ -75,7 +75,6 @@ class DiscriminatorRealGenerator(BaseBatchGenerator):
 
     def get_reshaped_batch(self, batch_inputs, batch_labels):
         batch_input_images, batch_gray_images = unzip(batch_inputs)
-        print(np.array(batch_labels), 'Real images!')
         return [np.array(batch_input_images), np.array(batch_gray_images)], np.array(batch_labels)
 
 
@@ -99,7 +98,6 @@ class ColorizerBatchGenerator(BaseBatchGenerator):
 
     def get_reshaped_batch(self, batch_inputs, batch_labels):
         batch_labels, batch_image_labels = unzip(batch_labels)
-        print(np.array(batch_labels))
         return np.array(batch_inputs), [np.array(batch_labels), np.array(batch_image_labels)]
 
 
