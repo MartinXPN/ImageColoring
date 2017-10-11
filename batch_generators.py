@@ -1,5 +1,5 @@
 import random
-import threading
+from threading import Thread
 
 import numpy as np
 from keras.preprocessing.image import load_img
@@ -19,28 +19,37 @@ class BaseBatchGenerator(object):
         self.batch_size = batch_size
         self.image_height = image_height
         self.image_width = image_width
-        self.lock = threading.Lock()
         self.index = 0
         if shuffle:
             random.shuffle(self.image_paths)
 
+        self.generator_thread = Thread(target=self.generate_next_batch_async)
+        self.generator_thread.start()
+        self.batch = None
+
+    def generate_next_batch_async(self):
+        batch_inputs = []
+        batch_labels = []
+
+        for i in range(self.batch_size):
+            path = self.image_paths[self.index]
+            x, y = self.generate_one(path)
+
+            batch_inputs.append(x)
+            batch_labels.append(y)
+
+            self.index += 1
+            if self.index >= len(self.image_paths):
+                self.index = 0
+
+        self.batch = self.get_reshaped_batch(batch_inputs, batch_labels)
+
     def next(self):
-        with self.lock:
-            batch_inputs = []
-            batch_labels = []
-
-            for i in range(self.batch_size):
-                path = self.image_paths[self.index]
-                x, y = self.generate_one(path)
-                
-                batch_inputs.append(x)
-                batch_labels.append(y)
-
-                self.index += 1
-                if self.index >= len(self.image_paths):
-                    self.index = 0
-
-            return self.get_reshaped_batch(batch_inputs, batch_labels)
+        self.generator_thread.join()
+        res = self.batch
+        self.generator_thread = Thread(target=self.generate_next_batch_async)
+        self.generator_thread.start()
+        return res
 
     def load_gray_image(self, path):
         """
