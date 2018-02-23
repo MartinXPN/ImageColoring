@@ -1,23 +1,25 @@
-from __future__ import print_function
 from __future__ import division
+from __future__ import print_function
 
 import argparse
 
 from keras.applications import VGG16
+from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.layers import Conv2D
 from keras.models import Sequential
 from keras.preprocessing.image import ImageDataGenerator
-from keras.callbacks import EarlyStopping, TensorBoard, ModelCheckpoint
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size', default=70, help='Batch size', type=int)
-    parser.add_argument('--image_size', default=224, help='Batch size', type=int)
-    parser.add_argument('--epoch_images', default=5000, help='Number of images seen in one epoch', type=int)
-    parser.add_argument('--epochs', default=500, help='Number of max epochs', type=int)
-    parser.add_argument('--valid_images', default=1024, help='Number of images seen during validation', type=int)
-    parser.add_argument('--train_data_dir', default='/mnt/bolbol/raw-data/train', type=str)
-    parser.add_argument('--valid_data_dir', default='/mnt/bolbol/raw-data/validation', type=str)
+    parser.add_argument('--batch_size',         default=70,     help='Batch size',                          type=int)
+    parser.add_argument('--image_size',         default=224,    help='Batch size',                          type=int)
+    parser.add_argument('--epoch_images',       default=5000,   help='Number of images seen in one epoch',  type=int)
+    parser.add_argument('--finetune_epochs',    default=300,    help='Number of max epochs for fineTuning', type=int)
+    parser.add_argument('--endtoend_epochs',    default=500,    help='Number of max epochs for end-to-end', type=int)
+    parser.add_argument('--valid_images',       default=1024,   help='Number of images seen during validation', type=int)
+    parser.add_argument('--train_data_dir',     default='/mnt/bolbol/raw-data/train',                       type=str)
+    parser.add_argument('--valid_data_dir',     default='/mnt/bolbol/raw-data/validation',                  type=str)
     args = parser.parse_args()
 
     vgg = VGG16()
@@ -52,9 +54,18 @@ if __name__ == '__main__':
 
     model.fit_generator(train_generator,
                         steps_per_epoch=args.epoch_images // args.batch_size,
-                        epochs=args.epochs,
+                        epochs=args.finetune_epochs,
                         validation_data=valid_generator,
                         validation_steps=args.valid_images // args.batch_size,
-                        callbacks=[TensorBoard(),
-                                   EarlyStopping(patience=5),
-                                   ModelCheckpoint(filepath='models/checkpoint-{epoch:02d}-{val_loss:.2f}.hdf5')])
+                        callbacks=[EarlyStopping(patience=5),
+                                   ModelCheckpoint(filepath='models/finetune-{epoch:02d}-{val_loss:.2f}.hdf5')])
+
+    for layer in model.layers:
+        layer.trainable = True
+    model.fit_generator(train_generator,
+                        steps_per_epoch=args.epoch_images // args.batch_size,
+                        epochs=args.endtoend_epochs,
+                        validation_data=valid_generator,
+                        validation_steps=args.valid_images // args.batch_size,
+                        callbacks=[EarlyStopping(patience=5),
+                                   ModelCheckpoint(filepath='models/end-to-end-{epoch:02d}-{val_loss:.2f}.hdf5')])
