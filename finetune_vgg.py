@@ -3,12 +3,13 @@ from __future__ import print_function
 
 import argparse
 
+import gc
 from keras.applications import VGG16
 from keras.callbacks import EarlyStopping, ModelCheckpoint
-from keras.layers import Conv2D
+from keras.engine import InputLayer
+from keras.layers import Conv2D, MaxPooling2D, AveragePooling2D
 from keras.models import Sequential
 from keras.preprocessing.image import ImageDataGenerator
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -32,15 +33,15 @@ if __name__ == '__main__':
 
     needed_layers = vgg.layers[2:]
     model = Sequential()
-    model.add(Conv2D(filters=64, kernel_size=3, padding='same', input_shape=(224, 224, 1)))
+    model.add(InputLayer(input_shape=(224, 224, 1)))
+    model.add(Conv2D(filters=64, kernel_size=3, padding='same'))
     for layer in needed_layers:
         model.add(layer)
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
 
-    print('Model layers:')
-    for layer in model.layers:
-        print(layer.name + ':\t', layer.trainable)
+    del vgg, needed_layers[:], needed_layers
+    gc.collect()
 
     generator = ImageDataGenerator(rescale=1. / 255)
     train_generator = generator.flow_from_directory(directory=args.train_data_dir,
@@ -60,12 +61,23 @@ if __name__ == '__main__':
                         callbacks=[EarlyStopping(patience=5),
                                    ModelCheckpoint(filepath='models/finetune-{epoch:02d}-{val_loss:.2f}.hdf5')])
 
+    # Prepare for end-to-end training
+    end_to_end_model = Sequential()
     for layer in model.layers:
+        if isinstance(layer, MaxPooling2D):     end_to_end_model.add(AveragePooling2D())
+        else:                                   end_to_end_model.add(layer)
+
+    for layer in end_to_end_model.layers:
         layer.trainable = True
-    model.fit_generator(train_generator,
-                        steps_per_epoch=args.epoch_images // args.batch_size,
-                        epochs=args.endtoend_epochs,
-                        validation_data=valid_generator,
-                        validation_steps=args.valid_images // args.batch_size,
-                        callbacks=[EarlyStopping(patience=5),
-                                   ModelCheckpoint(filepath='models/end-to-end-{epoch:02d}-{val_loss:.2f}.hdf5')])
+
+    del model
+    gc.collect()
+    end_to_end_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    end_to_end_model.summary()
+    end_to_end_model.fit_generator(train_generator,
+                                   steps_per_epoch=args.epoch_images // args.batch_size,
+                                   epochs=args.endtoend_epochs,
+                                   validation_data=valid_generator,
+                                   validation_steps=args.valid_images // args.batch_size,
+                                   callbacks=[EarlyStopping(patience=5),
+                                              ModelCheckpoint(filepath='models/end-to-end-{epoch:02d}-{val_loss:.2f}.hdf5')])
