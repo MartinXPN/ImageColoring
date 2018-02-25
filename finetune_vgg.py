@@ -11,6 +11,13 @@ from keras.layers import Conv2D, MaxPooling2D, AveragePooling2D
 from keras.models import Sequential
 from keras.preprocessing.image import ImageDataGenerator
 
+
+def preprocess_image(x):
+    x -= 128.
+    x /= 128
+    return x
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size',         default=70,     help='Batch size',                          type=int)
@@ -33,7 +40,7 @@ if __name__ == '__main__':
 
     needed_layers = vgg.layers[2:]
     model = Sequential()
-    model.add(InputLayer(input_shape=(224, 224, 1)))
+    model.add(InputLayer(input_shape=(args.image_size, args.image_size, 1)))
     model.add(Conv2D(filters=64, kernel_size=3, padding='same'))
     for layer in needed_layers:
         model.add(layer)
@@ -43,7 +50,7 @@ if __name__ == '__main__':
     del vgg, needed_layers[:], needed_layers
     gc.collect()
 
-    generator = ImageDataGenerator(rescale=1. / 255)
+    generator = ImageDataGenerator(preprocessing_function=preprocess_image)
     train_generator = generator.flow_from_directory(directory=args.train_data_dir,
                                                     target_size=(args.image_size, args.image_size),
                                                     batch_size=args.batch_size,
