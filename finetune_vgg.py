@@ -11,12 +11,6 @@ from keras.models import Sequential
 from keras.preprocessing.image import ImageDataGenerator
 
 
-def preprocess_image(x):
-    x -= 128.
-    x /= 128
-    return x
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size',         default=70,     help='Batch size',                          type=int)
@@ -47,7 +41,7 @@ if __name__ == '__main__':
     model.summary()
 
     ''' Prepare data generators '''
-    generator = ImageDataGenerator(preprocessing_function=preprocess_image)
+    generator = ImageDataGenerator(preprocessing_function=lambda x: (x - 128.) / 128.)
     train_generator = generator.flow_from_directory(directory=args.train_data_dir,
                                                     target_size=(args.image_size, args.image_size),
                                                     batch_size=args.batch_size,
