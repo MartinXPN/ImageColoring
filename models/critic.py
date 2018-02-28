@@ -2,12 +2,20 @@ from keras import Input
 from keras.engine import Model
 from keras.layers import Conv2D, BatchNormalization, LeakyReLU, Dense, Flatten, Dropout
 
+from util.clipweights import WeightClip
+
 
 def Conv2DBatchNormalizationLeakyReLU(input_layer,
                                       filters, kernel_size, strides=(1, 1), padding='valid',
                                       alpha=0.3):
     res = input_layer
-    res = Conv2D(filters=filters, kernel_size=kernel_size, strides=strides, activation=None, padding=padding)(res)
+    res = Conv2D(filters=filters,
+                 kernel_size=kernel_size,
+                 strides=strides,
+                 activation=None,
+                 padding=padding,
+                 kernel_constraint=WeightClip(-2, 2),
+                 bias_constraint=WeightClip(-2, 2))(res)
     res = BatchNormalization()(res)
     res = LeakyReLU(alpha=alpha)(res)
     return res
@@ -30,11 +38,11 @@ class Critic(Model):
         x = Flatten()(x)
         x = Dropout(rate=0.3)(x)
 
-        x = Dense(1024, activation=None)(x)
+        x = Dense(1024, activation=None, kernel_constraint=WeightClip(-2, 2), bias_constraint=WeightClip(-2, 2))(x)
         x = LeakyReLU()(x)
         x = Dropout(rate=0.3)(x)
 
-        x = Dense(1024, activation=None)(x)
+        x = Dense(1024, activation=None, kernel_constraint=WeightClip(-2, 2), bias_constraint=WeightClip(-2, 2))(x)
         x = LeakyReLU()(x)
         x = Dropout(rate=0.3)(x)
         out = Dense(1, activation='linear')(x)

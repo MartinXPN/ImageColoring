@@ -1,11 +1,16 @@
 import argparse
 
 from keras.preprocessing.image import ImageDataGenerator
+from keras import backend as K
 
 import generators
 from models.colorizer import Colorizer
 from models.critic import Critic
 from models.gan import CombinedGan
+
+
+def wasserstein_loss(target, output):
+    return K.mean(target * output)
 
 
 if __name__ == '__main__':
@@ -20,10 +25,14 @@ if __name__ == '__main__':
                         help='Path to VGG/Feature extractor model or weights')
     args = parser.parse_args()
 
+    ''' Prepare Models '''
     colorizer = Colorizer(feature_extractor_model_path=args.feature_extractor_model_path,
                           input_shape=(args.image_size, args.image_size, 1))
     critic = Critic(input_shape=(args.image_size, args.image_size, 3))
     combined = CombinedGan(generator=colorizer, critic=critic, input_shape=(args.image_size, args.image_size, 1))
+    critic.compile(optimizer='adam', loss=wasserstein_loss)
+    combined.compile(optimizer='rmsprop', loss=[wasserstein_loss, 'mae'])
+    combined.summary()
 
     ''' Prepare data generators '''
     generator = ImageDataGenerator(preprocessing_function=lambda x: (x - 128.) / 128.)
