@@ -1,4 +1,5 @@
 import os
+from threading import Thread
 
 import numpy as np
 from keras import backend as K
@@ -20,10 +21,19 @@ class ImageDataGenerator(DirectoryIterator):
                                                  data_format=data_format,
                                                  save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format,
                                                  follow_links=follow_links)
+        self.generator_thread = Thread(target=self.generate_batch)
+        self.generator_thread.start()
+        self.batch = None
 
     def next(self):
-        with self.lock:
-            index_array, current_index, current_batch_size = next(self.index_generator)
+        self.generator_thread.join()
+        res = self.batch
+        self.generator_thread = Thread(target=self.generate_batch)
+        self.generator_thread.start()
+        return res
+
+    def generate_batch(self):
+        index_array, current_index, current_batch_size = next(self.index_generator)
 
         # The transformation of images is not under thread lock
         # so it can be done in parallel
@@ -72,5 +82,7 @@ class ImageDataGenerator(DirectoryIterator):
 
         res = tuple([item for item in [batch_x, batch_y] if item is not None])
         if len(res) == 1:
+            self.batch = res[0]
             return res[0]
+        self.batch = res[0]
         return res
