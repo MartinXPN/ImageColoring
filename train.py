@@ -42,19 +42,29 @@ class Gym(object):
 
         def train_critic_real():
             # Train critic on real data
+            train_critic_real.steps += 1
             real_data_inputs, real_data_outputs = self.real_data_generator.next()
-            self.critic.train_on_batch(real_data_inputs, real_data_outputs)
+            loss = self.critic.train_on_batch(real_data_inputs, real_data_outputs)
+            self.logger.on_epoch_end(epoch=train_critic_real.steps,
+                                     logs={'Critic loss on real data': loss})
 
         def train_critic_fake():
             # Train critic on fake data
-            fake_data_inputs = self.generator_data_generator.next()
-            fake_images = self.generator.predict(fake_data_inputs)
-            self.critic.train_on_batch(fake_images, np.array([1] * len(fake_images)))
+            train_critic_fake.steps += 1
+            greyscale_images = self.generator_data_generator.next()
+            fake_images = self.generator.predict(greyscale_images)
+            loss = self.critic.train_on_batch(fake_images, np.array([1] * len(fake_images)))
+            self.logger.on_epoch_end(epoch=train_critic_fake.steps,
+                                     logs={'Critic loss on fake data': loss})
 
         def train_generator_fool_critic():
             # Train generator to fool the critic
+            train_generator_fool_critic.steps += 1
             fool_inputs, fool_outputs = self.combined_data_generator.next()
-            self.combined.train_on_batch(fool_inputs, fool_outputs)
+            loss, l1_loss = self.combined.train_on_batch(fool_inputs, fool_outputs)
+            self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
+                                     logs={'Target image L1 loss': l1_loss,
+                                           'Combined prediction loss': loss})
 
         ''' Initialize counters '''
         train_critic_real.steps = 0
@@ -75,6 +85,7 @@ def main():
     parser.add_argument('--epoch_images',       default=5000,   help='Number of images seen in one epoch',  type=int)
     parser.add_argument('--train_data_dir',     default='/mnt/bolbol/raw-data/train',                       type=str)
     parser.add_argument('--valid_data_dir',     default='/mnt/bolbol/raw-data/validation',                  type=str)
+    parser.add_argument('--logdir',             default='./logs',   help='Where to log the progres',        type=str)
     parser.add_argument('--feature_extractor_model_path',
                         default='/Users/martin/Desktop/finetune-40-2.08-no-top.hdf5',
                         help='Path to VGG/Feature extractor model or weights')
@@ -110,12 +121,14 @@ def main():
                                                        class_mode='input',
                                                        label=-1)
 
+    logger = TensorBoard(log_dir=args.logdir)
     gym = Gym(generator=generator, critic=critic, combined=combined,
               generator_data_generator=greyscale_generator,
               real_data_generator=real_data_generator,
               combined_data_generator=combined_generator,
-              logger=TensorBoard(),
+              logger=logger,
               models_save_dir='models')
+    gym.train()
 
 
 if __name__ == '__main__':
