@@ -8,7 +8,7 @@ from keras.preprocessing.image import load_img, DirectoryIterator, img_to_array,
 class ImageDataGenerator(DirectoryIterator):
     def __init__(self, directory, image_data_generator,
                  target_size=(256, 256), color_mode='rgb',
-                 classes=None, class_mode=None, label=None,
+                 classes=None, class_mode=None,
                  batch_size=32, shuffle=True, seed=None,
                  data_format=None,
                  save_to_dir=None, save_prefix='', save_format='png',
@@ -20,7 +20,6 @@ class ImageDataGenerator(DirectoryIterator):
                                                  data_format=data_format,
                                                  save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format,
                                                  follow_links=follow_links)
-        self.label = label
 
     def next(self):
         with self.lock:
@@ -53,7 +52,6 @@ class ImageDataGenerator(DirectoryIterator):
                 img.save(os.path.join(self.save_to_dir, fname))
 
         # build batch of labels
-        labels = np.array([self.label] * len(batch_x)) if self.label is not None else None
         if self.class_mode == 'sparse':         batch_y = self.classes[index_array]
         elif self.class_mode == 'binary':       batch_y = self.classes[index_array].astype(K.floatx())
         elif self.class_mode == 'categorical':
@@ -65,12 +63,14 @@ class ImageDataGenerator(DirectoryIterator):
             for i, j in enumerate(index_array):
                 img = load_img(os.path.join(self.directory, self.filenames[j]), target_size=self.target_size)
                 batch_y[i] = img_to_array(img, data_format=self.data_format)
+            batch_y -= 128.
+            batch_y /= 128.
         elif self.class_mode:
             batch_y = self.classes[index_array]
         else:
             batch_y = None
 
-        res = tuple([item for item in [batch_x, batch_y, labels] if item is not None])
+        res = tuple([item for item in [batch_x, batch_y] if item is not None])
         if len(res) == 1:
             return res[0]
         return res
