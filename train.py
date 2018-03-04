@@ -82,9 +82,9 @@ class Gym(object):
 
         ''' Start training '''
         while True:
-            while train_critic_real() > 0.1:            pass
-            while train_critic_fake() > 0.1:            pass
-            while train_generator_fool_critic() > 0.1:  pass
+            while train_critic_real() > 0.15:            pass
+            while train_critic_fake() > 0.15:            pass
+            while train_generator_fool_critic() > 0.15:  pass
 
 
 def main():
@@ -97,7 +97,7 @@ def main():
     parser.add_argument('--logdir',             default='./logs',   help='Where to log the progres',        type=str)
     parser.add_argument('--models_save_dir',    default='coloring_models',  help='Where to save models',    type=str)
     parser.add_argument('--feature_extractor_model_path',
-                        default='/Users/martin/Desktop/finetune-40-2.08-no-top.hdf5',
+                        default='finetune-40-2.08-no-top.hdf5',
                         help='Path to VGG/Feature extractor model or weights')
     args = parser.parse_args()
 

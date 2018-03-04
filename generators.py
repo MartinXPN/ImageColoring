@@ -33,10 +33,12 @@ class ImageDataGenerator(DirectoryIterator):
         return res
 
     def generate_batch(self):
-        index_array, current_index, current_batch_size = next(self.index_generator)
+        with self.lock:
+            index_array = next(self.index_generator)
 
         # The transformation of images is not under thread lock
         # so it can be done in parallel
+        current_batch_size = len(index_array)
         batch_x = np.zeros((current_batch_size,) + self.image_shape, dtype=K.floatx())
         grayscale = self.color_mode == 'grayscale'
 
@@ -53,10 +55,10 @@ class ImageDataGenerator(DirectoryIterator):
 
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
-            for i in range(current_batch_size):
+            for i, index in zip(range(current_batch_size), index_array):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
                 fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
-                                                                  index=current_index + i,
+                                                                  index=index,
                                                                   hash=np.random.randint(10000),
                                                                   format=self.save_format)
                 img.save(os.path.join(self.save_to_dir, fname))
@@ -65,7 +67,7 @@ class ImageDataGenerator(DirectoryIterator):
         if self.class_mode == 'sparse':         batch_y = self.classes[index_array]
         elif self.class_mode == 'binary':       batch_y = self.classes[index_array].astype(K.floatx())
         elif self.class_mode == 'categorical':
-            batch_y = np.zeros((len(batch_x), self.num_class), dtype=K.floatx())
+            batch_y = np.zeros((len(batch_x), self.num_classes), dtype=K.floatx())
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         elif self.class_mode == 'input':
