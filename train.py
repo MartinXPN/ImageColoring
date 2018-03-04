@@ -4,6 +4,7 @@ import os
 import numpy as np
 from keras import backend as K
 from keras.callbacks import TensorBoard
+from keras.optimizers import RMSprop
 from keras.preprocessing.image import ImageDataGenerator
 
 import generators
@@ -45,7 +46,7 @@ class Gym(object):
             # Train critic on real data
             train_critic_real.steps += 1
             real_images = self.real_data_generator.next()
-            real_labels = np.array([-1] * len(real_images))
+            real_labels = -np.ones(shape=len(real_images))
 
             loss = self.critic.train_on_batch(x=real_images, y=real_labels)
             self.logger.on_epoch_end(epoch=train_critic_real.steps,
@@ -57,7 +58,7 @@ class Gym(object):
             train_critic_fake.steps += 1
             greyscale_images = self.generator_data_generator.next()
             fake_images = self.generator.predict(greyscale_images)
-            fake_labels = np.array([1] * len(fake_images))
+            fake_labels = np.ones(shape=len(fake_images))
 
             loss = self.critic.train_on_batch(x=fake_images, y=fake_labels)
             self.logger.on_epoch_end(epoch=train_critic_fake.steps,
@@ -68,9 +69,9 @@ class Gym(object):
             # Train generator to fool the critic
             train_generator_fool_critic.steps += 1
             fool_inputs, target_images = self.combined_data_generator.next()
-            fool_labels = np.array([-1] * len(fool_inputs))
+            fool_labels = -np.ones(shape=len(fool_inputs))
 
-            [loss, l1_loss, _] = self.combined.train_on_batch(x=fool_inputs, y=[fool_labels, target_images])
+            [_, loss, l1_loss] = self.combined.train_on_batch(x=fool_inputs, y=[fool_labels, target_images])
             self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
                                      logs={'Target image L1 loss': l1_loss, 'Combined prediction loss': loss})
             return loss
@@ -82,9 +83,10 @@ class Gym(object):
 
         ''' Start training '''
         while True:
-            while abs(train_critic_real()) > loss_threshold:            pass
-            while abs(train_critic_fake()) > loss_threshold:            pass
-            while abs(train_generator_fool_critic()) > loss_threshold:  pass
+            for _ in range(5):
+                train_critic_real()
+                train_critic_fake()
+            train_generator_fool_critic()
 
 
 def main():
@@ -106,8 +108,8 @@ def main():
                           input_shape=(args.image_size, args.image_size, 1))
     critic = Critic(input_shape=(args.image_size, args.image_size, 3))
     combined = CombinedGan(generator=colorizer, critic=critic, input_shape=(args.image_size, args.image_size, 1))
-    critic.compile(optimizer='adam', loss=wasserstein_loss)
-    combined.compile(optimizer='rmsprop', loss=[wasserstein_loss, 'mae'])
+    critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
+    combined.compile(optimizer=RMSprop(lr=0.00005), loss=[wasserstein_loss, 'mae'])
     combined.summary()
 
     ''' Prepare data generators '''
