@@ -1,5 +1,6 @@
 import os
 from threading import Thread
+from copy import copy
 
 import numpy as np
 from keras import backend as K
@@ -27,7 +28,7 @@ class ImageDataGenerator(DirectoryIterator):
 
     def next(self):
         self.generator_thread.join()
-        res = self.batch
+        res = copy(self.batch)
         self.generator_thread = Thread(target=self.generate_batch)
         self.generator_thread.start()
         return res
@@ -84,7 +85,6 @@ class ImageDataGenerator(DirectoryIterator):
 
         res = tuple([item for item in [batch_x, batch_y] if item is not None])
         if len(res) == 1:
-            self.batch = res[0]
-            return res[0]
-        self.batch = res[0]
+            res = res[0]
+        self.batch = res
         return res
