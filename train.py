@@ -39,7 +39,7 @@ class Gym(object):
         self.logger = logger
         self.logger.set_model(self.combined)
 
-    def train(self):
+    def train(self, loss_threshold=0.12):
 
         def train_critic_real():
             # Train critic on real data
@@ -82,9 +82,9 @@ class Gym(object):
 
         ''' Start training '''
         while True:
-            while train_critic_real() > 0.15:            pass
-            while train_critic_fake() > 0.15:            pass
-            while train_generator_fool_critic() > 0.15:  pass
+            while abs(train_critic_real()) > loss_threshold:            pass
+            while abs(train_critic_fake()) > loss_threshold:            pass
+            while abs(train_generator_fool_critic()) > loss_threshold:  pass
 
 
 def main():
