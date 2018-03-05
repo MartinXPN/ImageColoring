@@ -2,6 +2,7 @@ import argparse
 import os
 
 import numpy as np
+from scipy.misc import imsave
 from keras import backend as K
 from keras.callbacks import TensorBoard
 from keras.optimizers import RMSprop
@@ -21,8 +22,7 @@ class Gym(object):
     def __init__(self,
                  generator, critic, combined,
                  generator_data_generator, real_data_generator, combined_data_generator,
-                 logger,
-                 models_save_dir):
+                 logger, models_save_dir, colored_images_save_dir):
 
         self.generator = generator
         self.critic = critic
@@ -39,8 +39,9 @@ class Gym(object):
 
         self.logger = logger
         self.logger.set_model(self.combined)
+        self.colored_images_save_dir = colored_images_save_dir
 
-    def train(self, loss_threshold=0.12):
+    def train(self, loss_threshold=0.12, eval_interval=10, epochs=100000):
 
         def train_critic_real():
             # Train critic on real data
@@ -82,11 +83,23 @@ class Gym(object):
         train_generator_fool_critic.steps = 0
 
         ''' Start training '''
-        while True:
+        for epoch in range(epochs):
             for _ in range(5):
                 train_critic_real()
                 train_critic_fake()
             train_generator_fool_critic()
+            if epoch % eval_interval == 0:
+                self.evaluate(epoch=epoch)
+
+    def evaluate(self, epoch):
+        print('Evaluating... epoch =', epoch, end='')
+        greyscale_images = self.generator_data_generator.next()
+        colored_images = self.generator.predict(greyscale_images)
+        for i, image in enumerate(colored_images):
+            imsave(name=os.path.join(self.colored_images_save_dir, str(epoch) + '-' + str(i) + '.jpg'),
+                   arr=image)
+        self.generator.save(self.model_save_dir + 'epoch={}.hdf5'.format(epoch))
+        print('Done!')
 
 
 def main():
@@ -98,6 +111,7 @@ def main():
     parser.add_argument('--valid_data_dir',     default='/mnt/bolbol/raw-data/validation',                  type=str)
     parser.add_argument('--logdir',             default='./logs',   help='Where to log the progres',        type=str)
     parser.add_argument('--models_save_dir',    default='coloring_models',  help='Where to save models',    type=str)
+    parser.add_argument('--eval_images_dir',    default='colored_images',   help='Where to save images',    type=str)
     parser.add_argument('--feature_extractor_model_path',
                         default='finetune-40-2.08-no-top.hdf5',
                         help='Path to VGG/Feature extractor model or weights')
@@ -137,7 +151,8 @@ def main():
               real_data_generator=real_data_generator,
               combined_data_generator=combined_generator,
               logger=logger,
-              models_save_dir=args.models_save_dir)
+              models_save_dir=args.models_save_dir,
+              colored_images_save_dir=args.eval_images_dir)
     gym.train()
 
 
