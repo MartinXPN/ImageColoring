@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import argparse
 import os
 
@@ -34,12 +36,12 @@ class Gym(object):
         self.combined_data_generator = combined_data_generator
 
         self.model_save_dir = models_save_dir
-        if not os.path.exists(self.model_save_dir):
-            os.mkdir(self.model_save_dir)
+        self.colored_images_save_dir = colored_images_save_dir
+        if not os.path.exists(self.model_save_dir):             os.mkdir(self.model_save_dir)
+        if not os.path.exists(self.colored_images_save_dir):    os.mkdir(self.colored_images_save_dir)
 
         self.logger = logger
         self.logger.set_model(self.combined)
-        self.colored_images_save_dir = colored_images_save_dir
 
     def train(self, loss_threshold=0.12, eval_interval=10, epochs=100000):
 
@@ -92,7 +94,7 @@ class Gym(object):
                 self.evaluate(epoch=epoch)
 
     def evaluate(self, epoch):
-        print('Evaluating... epoch =', epoch, end='')
+        print('Evaluating... epoch =', epoch, end='\t')
         greyscale_images = self.generator_data_generator.next()
         colored_images = self.generator.predict(greyscale_images)
         for i, image in enumerate(colored_images):
