@@ -1,5 +1,6 @@
 from keras import Input
 from keras.engine import Model
+from keras.layers import Concatenate
 
 
 class CombinedGan(Model):
@@ -9,13 +10,14 @@ class CombinedGan(Model):
             super(CombinedGan, self).__init__(inputs=inputs, outputs=outputs, name=name)
             return
 
-        greyscale_input = Input(shape=input_shape)
-        colorized_fake_image = generator(greyscale_input)
+        L = Input(shape=input_shape)
+        ab = generator(L)
+        Lab = Concatenate()([L, ab])
 
         # we only want to be able to train generator/colorizer for the combined model
         critic.trainable = False
-        critic_output = critic(colorized_fake_image)
+        critic_output = critic(Lab)
 
-        super(CombinedGan, self).__init__(inputs=greyscale_input,                         # Only one input - grey image
-                                          outputs=[critic_output, colorized_fake_image],  # colorized image for L1 loss
+        super(CombinedGan, self).__init__(inputs=L,                     # Only one input - grey image
+                                          outputs=[critic_output, ab],  # colorized output for L1 loss
                                           name=name)

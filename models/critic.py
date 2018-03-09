@@ -33,8 +33,8 @@ class Critic(Model):
             super(Critic, self).__init__(inputs=inputs, outputs=outputs, name=name)
             return
 
-        rgb = Input(shape=input_shape)
-        x = rgb
+        lab = Input(shape=input_shape)
+        x = lab
         for filters in [64, 256, 512, 64]:
             x = Conv2DBatchNormalizationLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(1, 1))
             x = Conv2DBatchNormalizationLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(1, 1))
@@ -57,4 +57,4 @@ class Critic(Model):
         x = Dropout(rate=0.3)(x)
 
         out = Dense(1, activation='linear')(x)
-        super(Critic, self).__init__(inputs=rgb, outputs=out, name=name)
+        super(Critic, self).__init__(inputs=lab, outputs=out, name=name)

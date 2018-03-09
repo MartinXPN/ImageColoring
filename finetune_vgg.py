@@ -10,6 +10,7 @@ from keras.layers import Conv2D
 from keras.models import Sequential
 from keras.preprocessing.image import ImageDataGenerator
 
+from util.data import rgb_to_colorizer_input
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -33,7 +34,7 @@ if __name__ == '__main__':
 
     needed_layers = vgg.layers[2:]
     model = Sequential()
-    model.add(InputLayer(input_shape=(args.image_size, args.image_size, 1)))
+    model.add(InputLayer(input_shape=(args.image_size, args.image_size, 1), name='L'))
     model.add(Conv2D(filters=64, kernel_size=3, padding='same'))
     for layer in needed_layers:
         model.add(layer)
@@ -41,15 +42,20 @@ if __name__ == '__main__':
     model.summary()
 
     ''' Prepare data generators '''
-    generator = ImageDataGenerator(preprocessing_function=lambda x: (x - 128.) / 128.)
+    generator = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
     train_generator = generator.flow_from_directory(directory=args.train_data_dir,
                                                     target_size=(args.image_size, args.image_size),
                                                     batch_size=args.batch_size,
-                                                    color_mode='grayscale')
+                                                    color_mode='rgb',
+                                                    class_mode='categorical')
     valid_generator = generator.flow_from_directory(directory=args.valid_data_dir,
                                                     target_size=(args.image_size, args.image_size),
                                                     batch_size=args.batch_size,
-                                                    color_mode='grayscale')
+                                                    color_mode='rgb',
+                                                    class_mode='categorical')
+
+    train_generator.image_shape = train_generator.target_size + (1,)
+    valid_generator.image_shape  = valid_generator.target_size + (1,)
 
     ''' FineTune VGG '''
     model.fit_generator(train_generator,
