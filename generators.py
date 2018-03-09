@@ -6,6 +6,8 @@ import numpy as np
 from keras import backend as K
 from keras.preprocessing.image import load_img, DirectoryIterator, img_to_array, array_to_img
 
+from util.data import rgb_to_target_image
+
 
 class ImageDataGenerator(DirectoryIterator):
     def __init__(self, directory, image_data_generator,
@@ -40,19 +42,18 @@ class ImageDataGenerator(DirectoryIterator):
         # The transformation of images is not under thread lock
         # so it can be done in parallel
         current_batch_size = len(index_array)
-        batch_x = np.zeros((current_batch_size,) + self.image_shape, dtype=K.floatx())
         grayscale = self.color_mode == 'grayscale'
 
         # build batch of image data
+        batch_x = []
         for i, j in enumerate(index_array):
             fname = self.filenames[j]
-            img = load_img(os.path.join(self.directory, fname),
-                           grayscale=grayscale,
-                           target_size=self.target_size)
+            img = load_img(os.path.join(self.directory, fname), grayscale=grayscale, target_size=self.target_size)
             x = img_to_array(img, data_format=self.data_format)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
-            batch_x[i] = x
+            batch_x.append(x)
+        batch_x = np.array(batch_x)
 
         # optionally save augmented images to disk for debugging purposes
         if self.save_to_dir:
@@ -68,16 +69,17 @@ class ImageDataGenerator(DirectoryIterator):
         if self.class_mode == 'sparse':         batch_y = self.classes[index_array]
         elif self.class_mode == 'binary':       batch_y = self.classes[index_array].astype(K.floatx())
         elif self.class_mode == 'categorical':
-            batch_y = np.zeros((len(batch_x), self.num_classes), dtype=K.floatx())
+            batch_y = np.zeros((current_batch_size, self.num_classes), dtype=K.floatx())
             for i, label in enumerate(self.classes[index_array]):
                 batch_y[i, label] = 1.
         elif self.class_mode == 'input':
             batch_y = np.zeros((current_batch_size,) + self.target_size + (3,), dtype=K.floatx())
+            res = np.zeros((current_batch_size,) + self.target_size + (2,), dtype=K.floatx())
             for i, j in enumerate(index_array):
                 img = load_img(os.path.join(self.directory, self.filenames[j]), target_size=self.target_size)
                 batch_y[i] = img_to_array(img, data_format=self.data_format)
-            batch_y -= 128.
-            batch_y /= 128.
+                res[i] = rgb_to_target_image(batch_y[i])[:, :, 1:]  # Keep only ab space from whole Lab spectre
+            batch_y = res
         elif self.class_mode:
             batch_y = self.classes[index_array]
         else:

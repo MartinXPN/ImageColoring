@@ -14,6 +14,7 @@ import generators
 from models.colorizer import Colorizer
 from models.critic import Critic
 from models.gan import CombinedGan
+from util.data import rgb_to_colorizer_input, rgb_to_target_image, network_prediction_to_rgb
 
 
 def wasserstein_loss(target, output):
@@ -43,7 +44,7 @@ class Gym(object):
         self.logger = logger
         self.logger.set_model(self.combined)
 
-    def train(self, loss_threshold=0.12, eval_interval=10, epochs=100000):
+    def train(self, eval_interval=100, epochs=100000):
 
         def train_critic_real():
             # Train critic on real data
@@ -59,9 +60,10 @@ class Gym(object):
         def train_critic_fake():
             # Train critic on fake data
             train_critic_fake.steps += 1
-            greyscale_images = self.generator_data_generator.next()
-            fake_images = self.generator.predict(greyscale_images)
-            fake_labels = np.ones(shape=len(fake_images))
+            L = self.generator_data_generator.next()
+            ab = self.generator.predict(L)
+            fake_images = np.concatenate((L, ab), axis=3)
+            fake_labels = np.ones(shape=len(ab))
 
             loss = self.critic.train_on_batch(x=fake_images, y=fake_labels)
             self.logger.on_epoch_end(epoch=train_critic_fake.steps,
@@ -94,13 +96,14 @@ class Gym(object):
                 self.evaluate(epoch=epoch)
 
     def evaluate(self, epoch):
-        print('Evaluating... epoch =', epoch, end='\t')
+        print('Evaluating epoch %d ...'.format(epoch), end='\t')
         greyscale_images = self.generator_data_generator.next()
         colored_images = self.generator.predict(greyscale_images)
         for i, image in enumerate(colored_images):
+            rgb_prediction = network_prediction_to_rgb(colored_images[i], greyscale_images[i])
             imsave(name=os.path.join(self.colored_images_save_dir, str(epoch) + '-' + str(i) + '.jpg'),
-                   arr=image)
-        self.generator.save(self.model_save_dir + 'epoch={}.hdf5'.format(epoch))
+                   arr=rgb_prediction)
+        self.generator.save(os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
         print('Done!')
 
 
@@ -129,22 +132,24 @@ def main():
     combined.summary()
 
     ''' Prepare data generators '''
-    generator = ImageDataGenerator(preprocessing_function=lambda x: (x - 128.) / 128.)
+    greyscale_generator = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
+    real_data_generator = ImageDataGenerator(preprocessing_function=rgb_to_target_image)
+    combined_generator  = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
     greyscale_generator = generators.ImageDataGenerator(directory=args.train_data_dir,
-                                                        image_data_generator=generator,
+                                                        image_data_generator=greyscale_generator,
                                                         target_size=(args.image_size, args.image_size),
                                                         batch_size=args.batch_size,
-                                                        color_mode='grayscale')
+                                                        color_mode='rgb')
     real_data_generator = generators.ImageDataGenerator(directory=args.train_data_dir,
-                                                        image_data_generator=generator,
+                                                        image_data_generator=real_data_generator,
                                                         target_size=(args.image_size, args.image_size),
                                                         batch_size=args.batch_size,
                                                         color_mode='rgb')
     combined_generator = generators.ImageDataGenerator(directory=args.train_data_dir,
-                                                       image_data_generator=generator,
+                                                       image_data_generator=combined_generator,
                                                        target_size=(args.image_size, args.image_size),
                                                        batch_size=args.batch_size,
-                                                       color_mode='grayscale',
+                                                       color_mode='rgb',
                                                        class_mode='input')
 
     logger = TensorBoard(log_dir=args.logdir)
