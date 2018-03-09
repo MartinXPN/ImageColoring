@@ -44,7 +44,7 @@ class Gym(object):
         self.logger = logger
         self.logger.set_model(self.combined)
 
-    def train(self, eval_interval=100, epochs=100000):
+    def train(self, critic_steps=5, eval_interval=100, epochs=100000):
 
         def train_critic_real():
             # Train critic on real data
@@ -88,7 +88,7 @@ class Gym(object):
 
         ''' Start training '''
         for epoch in range(epochs):
-            for _ in range(5):
+            for _ in range(critic_steps):
                 train_critic_real()
                 train_critic_fake()
             train_generator_fool_critic()
@@ -96,7 +96,7 @@ class Gym(object):
                 self.evaluate(epoch=epoch)
 
     def evaluate(self, epoch):
-        print('Evaluating epoch %d ...'.format(epoch), end='\t')
+        print('Evaluating epoch {} ...'.format(epoch), end='\t')
         greyscale_images = self.generator_data_generator.next()
         colored_images = self.generator.predict(greyscale_images)
         for i, image in enumerate(colored_images):
@@ -110,6 +110,7 @@ class Gym(object):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size',         default=5,      help='Batch size',                          type=int)
+    parser.add_argument('--critic_steps',       default=5,      help='Number of steps to train the critic', type=int)
     parser.add_argument('--image_size',         default=224,    help='Batch size',                          type=int)
     parser.add_argument('--epoch_images',       default=5000,   help='Number of images seen in one epoch',  type=int)
     parser.add_argument('--train_data_dir',     default='/mnt/bolbol/raw-data/train',                       type=str)
@@ -118,7 +119,7 @@ def main():
     parser.add_argument('--models_save_dir',    default='coloring_models',  help='Where to save models',    type=str)
     parser.add_argument('--eval_images_dir',    default='colored_images',   help='Where to save images',    type=str)
     parser.add_argument('--feature_extractor_model_path',
-                        default='finetune-40-2.08-no-top.hdf5',
+                        default='finetune-70-2.15-no-top.hdf5',
                         help='Path to VGG/Feature extractor model or weights')
     args = parser.parse_args()
 
