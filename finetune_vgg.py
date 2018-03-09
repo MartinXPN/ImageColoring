@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import os
 
 from keras.applications import VGG16
 from keras.callbacks import EarlyStopping, ModelCheckpoint
@@ -12,6 +13,7 @@ from keras.preprocessing.image import ImageDataGenerator
 
 from util.data import rgb_to_colorizer_input
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size',         default=70,     help='Batch size',                          type=int)
@@ -21,6 +23,7 @@ if __name__ == '__main__':
     parser.add_argument('--valid_images',       default=1024,   help='Number of images seen during validation', type=int)
     parser.add_argument('--train_data_dir',     default='/mnt/bolbol/raw-data/train',                       type=str)
     parser.add_argument('--valid_data_dir',     default='/mnt/bolbol/raw-data/validation',                  type=str)
+    parser.add_argument('--model_save_dir',     default='finetune_models',                                  type=str)
     args = parser.parse_args()
 
     ''' Modify VGG16 to work with greyscale images '''
@@ -57,6 +60,12 @@ if __name__ == '__main__':
     train_generator.image_shape = train_generator.target_size + (1,)
     valid_generator.image_shape  = valid_generator.target_size + (1,)
 
+    # Configure model checkpoints
+    model_save_dir = args.model_save_dir
+    model_save_path = os.path.join(model_save_dir, 'finetune-{epoch:02d}-{val_loss:.2f}.hdf5')
+    if not os.path.exists(model_save_dir):
+        os.mkdir(model_save_dir)
+
     ''' FineTune VGG '''
     model.fit_generator(train_generator,
                         steps_per_epoch=args.epoch_images // args.batch_size,
@@ -64,4 +73,4 @@ if __name__ == '__main__':
                         validation_data=valid_generator,
                         validation_steps=args.valid_images // args.batch_size,
                         callbacks=[EarlyStopping(patience=5),
-                                   ModelCheckpoint(filepath='models/finetune-{epoch:02d}-{val_loss:.2f}.hdf5')])
+                                   ModelCheckpoint(filepath=model_save_path)])
