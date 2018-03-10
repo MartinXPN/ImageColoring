@@ -44,7 +44,7 @@ class Gym(object):
         self.logger = logger
         self.logger.set_model(self.combined)
 
-    def train(self, critic_steps=5, eval_interval=100, epochs=100000):
+    def train(self, loss_threshold=-0.1, eval_interval=100, epochs=100000):
 
         def train_critic_real():
             # Train critic on real data
@@ -88,10 +88,9 @@ class Gym(object):
 
         ''' Start training '''
         for epoch in range(epochs):
-            for _ in range(critic_steps):
-                train_critic_real()
-                train_critic_fake()
-            train_generator_fool_critic()
+            while train_critic_real() > loss_threshold:             pass
+            while train_critic_fake() > loss_threshold:             pass
+            while train_generator_fool_critic() > loss_threshold:   pass
             if epoch % eval_interval == 0:
                 self.evaluate(epoch=epoch)
 
@@ -110,9 +109,9 @@ class Gym(object):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size',         default=5,      help='Batch size',                          type=int)
-    parser.add_argument('--critic_steps',       default=5,      help='Number of steps to train the critic', type=int)
     parser.add_argument('--image_size',         default=224,    help='Batch size',                          type=int)
     parser.add_argument('--epoch_images',       default=5000,   help='Number of images seen in one epoch',  type=int)
+    parser.add_argument('--loss_threshold',     default=-0.1,   help='Switch to next training step',        type=float)
     parser.add_argument('--train_data_dir',     default='/mnt/bolbol/raw-data/train',                       type=str)
     parser.add_argument('--valid_data_dir',     default='/mnt/bolbol/raw-data/validation',                  type=str)
     parser.add_argument('--logdir',             default='./logs',   help='Where to log the progres',        type=str)
@@ -170,7 +169,7 @@ def main():
               logger=logger,
               models_save_dir=args.models_save_dir,
               colored_images_save_dir=args.eval_images_dir)
-    gym.train()
+    gym.train(loss_threshold=args.loss_threshold)
 
 
 if __name__ == '__main__':
