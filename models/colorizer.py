@@ -1,6 +1,8 @@
 from keras import Input
 from keras.engine import Model
-from keras.layers import Conv2D, UpSampling2D, concatenate, MaxPooling2D
+from keras.layers import Conv2D, concatenate, MaxPooling2D, ELU
+
+from layers.upsampling import SubpixelUpSampling
 
 
 class Colorizer(Model):
@@ -47,15 +49,15 @@ class Colorizer(Model):
         # Get the output of feature extractor and add up-sampling layers on top of the features
         x = feature_extractor(L)
         for filters, concat_layer in zip([512, 256, 128, 64, 32], [e4, e3, e2, e1, L]):
-            x = Conv2D(filters, kernel_size=(3, 3), activation='relu', padding='same')(x)
-            x = Conv2D(filters, kernel_size=(3, 3), activation='relu', padding='same')(x)
-            x = Conv2D(filters, kernel_size=(3, 3), activation='relu', padding='same')(x)
-            x = UpSampling2D(size=(2, 2))(x)
+            for i in range(3):
+                x = Conv2D(filters, kernel_size=(3, 3), activation=None, padding='same')(x)
+                x = ELU()(x)
+            x = SubpixelUpSampling(filters=filters, kernel_size=3, ratio=2, padding='same')(x)
             x = concatenate(inputs=[concat_layer, x])
 
-        x = Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same')(x)
-        x = Conv2D(32, kernel_size=(3, 3), activation='relu', padding='same')(x)
-        x = Conv2D(16, kernel_size=(3, 3), activation='relu', padding='same')(x)
+        # Post-processing after pix2pix-like connections
+        for filters in [32, 32, 16]:
+            x = Conv2D(filters, kernel_size=(3, 3), activation=None, padding='same')(x)
+            x = ELU()(x)
         ab = Conv2D(2, kernel_size=(3, 3), activation='tanh', padding='same', name='ab')(x)
-
         super(Colorizer, self).__init__(inputs=L, outputs=ab, name=name)

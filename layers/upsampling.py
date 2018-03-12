@@ -1,84 +1,64 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import tensorflow as tf
-from keras.engine import InputSpec, Layer
+from keras import backend as K
+from keras.layers import Conv2D
 
 
-def dense_interp(x, r, shape):
-    # x should be of shape : batch_size, w, h, r^2
-    bsize, a, b, c = shape
-    X = tf.reshape(x, (-1, a, b, r, r))
-    X = tf.transpose(X, (0, 1, 2, 4, 3))  # bsize, a, b, 1, 1
-    X = tf.split(X, a, 1)  # a, [bsize, b, r, r]
-    X = tf.concat([tf.squeeze(x) for x in X], 2)  # bsize, b, a*r, r
-    X = tf.reshape(X, (-1, b, a * r, r))
-    X = tf.split(X, b, 1)  # b, [bsize, a*r, r]
-    X = tf.concat([tf.squeeze(x) for x in X], 2)  # bsize, a*r, b*r
-    return tf.reshape(X, (-1, a * r, b * r, 1))
-
-
-class SubpixelDenseUpSampling(Layer):
-    """
-    This layer is inspired by the paper[1],
-    aiming to provide upsampling in a more accurate way.
-    Input to this layer is of size: w x h x r^2*c
-
-    Output from this layer is of size : W x H x C
-    where W = w * r, H = h * r, C = c
-    Intuitively, we want to compensate the information loss with more feature
-    channels, depth -> spatial resolution.
-    We can reshape the feature channels,
-    for example, take 1 x 1 x k^2, we can reshape it to k x k x 1.
-    ratio : the ratio you want to upsample for both dimensions (w,h).
-    nb_channel : The channels you really want after up-sampling.
-    nb_channel = input_shape[-1] / (prod(ratio))
-    dim_ordering = 'tf'
-    Reference:
-    [1] Real-Time Single Image and Video Super-Resolution Using an Efficient
-    Sub-Pixel Convolutional Neural Network.
-    """
-
-    def __init__(self, ratio=2, dim_ordering='tf', **kwargs):
+class SubpixelUpSampling(Conv2D):
+    def __init__(self, filters,
+                 kernel_size,
+                 ratio,
+                 padding='valid',
+                 data_format=None,
+                 strides=(1, 1),
+                 activation=None,
+                 use_bias=True,
+                 kernel_initializer='glorot_uniform',
+                 bias_initializer='zeros',
+                 kernel_regularizer=None,
+                 bias_regularizer=None,
+                 activity_regularizer=None,
+                 kernel_constraint=None,
+                 bias_constraint=None,
+                 **kwargs):
+        super(SubpixelUpSampling, self).__init__(filters=ratio * ratio * filters,
+                                                 kernel_size=kernel_size, strides=strides, padding=padding,
+                                                 data_format=data_format,
+                                                 activation=activation, use_bias=use_bias,
+                                                 kernel_initializer=kernel_initializer,
+                                                 bias_initializer=bias_initializer,
+                                                 kernel_regularizer=kernel_regularizer,
+                                                 bias_regularizer=bias_regularizer,
+                                                 activity_regularizer=activity_regularizer,
+                                                 kernel_constraint=kernel_constraint, bias_constraint=bias_constraint,
+                                                 **kwargs)
         self.ratio = ratio
-        assert dim_ordering in {'tf', 'th'}, 'dim_ordering must be in {tf, th}'
-        self.dim_ordering = dim_ordering
-        self.input_spec = [InputSpec(ndim=4)]
-        super(SubpixelDenseUpSampling, self).__init__(**kwargs)
 
-    def get_output_shape_for(self, input_shape):
-        if self.dim_ordering == 'tf':
-            height = self.ratio * input_shape[1] if input_shape[1] is not None else None
-            width = self.ratio * input_shape[2] if input_shape[2] is not None else None
-            if input_shape[3] % (self.ratio ** 2) != 0:
-                raise Exception('input shape : {}, can not upsample to {}'.format(input_shape,
-                                                                                  (input_shape[0], height, width,
-                                                                                   input_shape[3] // self.ratio ** 2)))
-            else:
-                channel = input_shape[3] // (self.ratio ** 2)
-            return (input_shape[0],
-                    width,
-                    height,
-                    channel)
-        else:
-            raise Exception('Only support TF, Invalid dim_ordering: ' + self.dim_ordering)
-
-    def call(self, x, mask=None):
-        inp_shape = x._keras_shape
-        output_shape = self.get_output_shape_for(inp_shape)
-        nb_channel = output_shape[-1]
+    def _phase_shift(self, inputs):
         r = self.ratio
+        bsize, a, b, c = inputs.get_shape().as_list()
+        bsize = K.shape(inputs)[0]                                      # Handling (None) type for undefined batch dim
+        res = K.reshape(inputs, [bsize, a, b, int(c / (r * r)), r, r])  # bsize, a, b, c/(r*r), r, r
+        res = K.permute_dimensions(res, (0, 1, 2, 5, 4, 3))             # bsize, a, b, r, r, c/(r*r)
+        # Keras backend does not support tf.split, so in future versions this could be nicer
+        res = [res[:, i, :, :, :, :] for i in range(a)]                 # a, [bsize, b, r, r, c/(r*r)
+        res = K.concatenate(res, 2)                                     # bsize, b, a*r, r, c/(r*r)
+        res = [res[:, i, :, :, :] for i in range(b)]                    # b, [bsize, r, r, c/(r*r)
+        res = K.concatenate(res, 2)                                     # bsize, a*r, b*r, c/(r*r)
+        return res
 
-        if nb_channel > 1:
-            interp_shape = [inp_shape[0], inp_shape[1], inp_shape[2], inp_shape[3] // nb_channel]
-            Xc = tf.split(x, nb_channel, 3)
-            X = tf.concat([dense_interp(x, r, interp_shape) for x in Xc], 3)
-        else:
-            interp_shape = inp_shape
-            X = dense_interp(x, r, interp_shape)
-        return X
+    def call(self, inputs, **kwargs):
+        return self._phase_shift(super(SubpixelUpSampling, self).call(inputs))
+
+    def compute_output_shape(self, input_shape):
+        unshifted = super(SubpixelUpSampling, self).compute_output_shape(input_shape)
+        return unshifted[0], self.ratio * unshifted[1], self.ratio * unshifted[2], int(unshifted[3] / (self.ratio * self.ratio))
 
     def get_config(self):
-        config = {'ratio': self.ratio}
-        base_config = super(SubpixelDenseUpSampling, self).get_config()
-        return dict(list(base_config.items()) + list(config.items()))
+        config = super(SubpixelUpSampling, self).get_config()
+        config.pop('rank')
+        config.pop('dilation_rate')
+        config['filters'] /= self.ratio * self.ratio
+        config['ratio'] = self.ratio
+        return config
