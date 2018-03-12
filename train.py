@@ -127,18 +127,13 @@ def main():
                           input_shape=(args.image_size, args.image_size, 1))
     critic = Critic(input_shape=(args.image_size, args.image_size, 3))
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
-    print('\n\n\n\nCritic:')
-    critic.summary()
     combined = CombinedGan(generator=colorizer, critic=critic, input_shape=(args.image_size, args.image_size, 1))
     combined.compile(optimizer=RMSprop(lr=0.00005), loss=[wasserstein_loss, 'mae'])
 
     ''' View summary of the models '''
-    print('\n\n\n\nColorizer:')
-    colorizer.summary()
-    print('\n\n\n\nCritic:')
-    critic.summary()
-    print('\n\n\n\nCombined:')
-    combined.summary()
+    print('\n\n\n\nColorizer:'),    colorizer.summary()
+    print('\n\n\n\nCritic:'),       critic.summary()
+    print('\n\n\n\nCombined:'),     combined.summary()
 
     ''' Prepare data generators '''
     greyscale_generator = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)

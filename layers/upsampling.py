@@ -57,8 +57,8 @@ class SubpixelUpSampling(Conv2D):
 
     def get_config(self):
         config = super(SubpixelUpSampling, self).get_config()
-        config.pop('rank')
-        config.pop('dilation_rate')
+        if 'rank' in config:            config.pop('rank')
+        if 'dilation_rate' in config:   config.pop('dilation_rate')
         config['filters'] /= self.ratio * self.ratio
         config['ratio'] = self.ratio
         return config
