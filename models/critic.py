@@ -33,6 +33,7 @@ class Critic(Model):
             super(Critic, self).__init__(inputs=inputs, outputs=outputs, name=name)
             return
 
+        ''' VGG-like conv filters '''
         lab = Input(shape=input_shape)
         x = lab
         for filters in [64, 256, 512, 64]:
@@ -41,20 +42,14 @@ class Critic(Model):
             x = Conv2DBatchNormalizationLeakyReLU(x, filters=filters, kernel_size=(5, 5), strides=(2, 2))
             x = Dropout(rate=0.3)(x)
 
-        # Fully connected layer #1
+        ''' Fully connected layers '''
         x = Flatten()(x)
-        x = Dense(units=1024, activation=None,
-                  kernel_initializer=weight_init, kernel_constraint=WeightClip(-0.01, 0.01),
-                  bias_constraint=WeightClip(-0.01, 0.01))(x)
-        x = LeakyReLU()(x)
-        x = Dropout(rate=0.3)(x)
-
-        # Fully connected layer #2
-        x = Dense(units=128, activation=None,
-                  kernel_initializer=weight_init, kernel_constraint=WeightClip(-0.01, 0.01),
-                  bias_constraint=WeightClip(-0.01, 0.01))(x)
-        x = LeakyReLU()(x)
-        x = Dropout(rate=0.3)(x)
+        for units in [1024, 128]:
+            x = Dense(units=units, activation=None,
+                      kernel_initializer=weight_init, kernel_constraint=WeightClip(-0.01, 0.01),
+                      bias_constraint=WeightClip(-0.01, 0.01))(x)
+            x = LeakyReLU()(x)
+            x = Dropout(rate=0.3)(x)
 
         out = Dense(1, activation='linear')(x)
         super(Critic, self).__init__(inputs=lab, outputs=out, name=name)

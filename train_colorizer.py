@@ -5,11 +5,12 @@ import os
 
 from keras.callbacks import TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
+from scipy.misc import imsave
 from tqdm import tqdm
 
 import generators
 from models.colorizer import Colorizer
-from util.data import rgb_to_colorizer_input
+from util.data import rgb_to_colorizer_input, network_prediction_to_rgb
 
 
 class Gym(object):
@@ -28,18 +29,34 @@ class Gym(object):
         self.logger = logger
         self.logger.set_model(self.colorizer)
 
-    def train(self, epochs=100000):
+    def train(self, epochs=100000, steps_per_epoch=500):
+        batches = 0
+        for epoch in range(epochs):
+            self.evaluate(epoch=epoch)
+            for _ in tqdm(range(steps_per_epoch)):
+                batches += 1
+                input_images, target_images = self.data_generator.next()
+                loss = self.colorizer.train_on_batch(x=input_images, y=target_images)
+                self.logger.on_epoch_end(epoch=batches, logs={'train loss': loss})
 
-        for epoch in tqdm(range(epochs)):
-            fool_inputs, target_images = self.data_generator.next()
-            loss = self.colorizer.train_on_batch(x=fool_inputs, y=target_images)
-            self.logger.on_epoch_end(epoch=epoch, logs={'train loss': loss})
+    def evaluate(self, epoch):
+        print('Evaluating epoch {} ...'.format(epoch), end='\t')
+        input_images, target_images = self.data_generator.next()
+        colored_images = self.colorizer.predict(input_images)
+        for i, image in enumerate(colored_images):
+            rgb_prediction = network_prediction_to_rgb(colored_images[i], input_images[i])
+            imsave(name=os.path.join(self.colored_images_save_dir, str(epoch) + '-' + str(i) + '.jpg'),
+                   arr=rgb_prediction)
+        self.colorizer.save(os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
+        print('Done!')
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--batch_size',         default=32,     help='Batch size',                          type=int)
-    parser.add_argument('--image_size',         default=224,    help='Batch size',                          type=int)
+    parser.add_argument('--image_size',         default=224,    help='Image size',                          type=int)
+    parser.add_argument('--epochs',             default=100000, help='Number of epochs',                    type=int)
+    parser.add_argument('--steps_per_epoch',    default=500,    help='Number of batches per one epoch',     type=int)
     parser.add_argument('--train_data_dir',     default='/mnt/bolbol/raw-data/train',                       type=str)
     parser.add_argument('--valid_data_dir',     default='/mnt/bolbol/raw-data/validation',                  type=str)
     parser.add_argument('--logdir',             default='./logs',       help='Where to log the progres',    type=str)
@@ -73,7 +90,7 @@ def main():
               logger=logger,
               models_save_dir=args.models_save_dir,
               colored_images_save_dir=args.eval_images_dir)
-    gym.train()
+    gym.train(epochs=args.epochs, steps_per_epoch=args.steps_per_epoch)
 
 
 if __name__ == '__main__':

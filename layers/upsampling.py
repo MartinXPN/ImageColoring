@@ -29,7 +29,7 @@ class SubpixelUpSampling(Conv2D):
         r = self.ratio
         bsize, a, b, c = inputs.get_shape().as_list()
         bsize = K.shape(inputs)[0]                                      # Handling (None) type for undefined batch dim
-        res = K.reshape(inputs, [bsize, a, b, int(c / (r * r)), r, r])  # bsize, a, b, c/(r*r), r, r
+        res = K.reshape(inputs, [bsize, a, b, c // (r * r), r, r])      # bsize, a, b, c/(r*r), r, r
         res = K.permute_dimensions(res, (0, 1, 2, 5, 4, 3))             # bsize, a, b, r, r, c/(r*r)
         # Keras backend does not support tf.split, so in future versions this could be nicer
         res = [res[:, i, :, :, :, :] for i in range(a)]                 # a, [bsize, b, r, r, c/(r*r)
@@ -43,12 +43,12 @@ class SubpixelUpSampling(Conv2D):
 
     def compute_output_shape(self, input_shape):
         unshifted = super(SubpixelUpSampling, self).compute_output_shape(input_shape)
-        return unshifted[0], self.ratio * unshifted[1], self.ratio * unshifted[2], int(unshifted[3] / (self.ratio * self.ratio))
+        return unshifted[0], self.ratio * unshifted[1], self.ratio * unshifted[2], unshifted[3] // (self.ratio * self.ratio)
 
     def get_config(self):
         config = super(SubpixelUpSampling, self).get_config()
         if 'rank' in config:            config.pop('rank')
         if 'dilation_rate' in config:   config.pop('dilation_rate')
-        config['filters'] /= self.ratio * self.ratio
+        config['filters'] //= self.ratio * self.ratio
         config['ratio'] = self.ratio
         return config
