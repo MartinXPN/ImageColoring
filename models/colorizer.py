@@ -1,3 +1,5 @@
+from __future__ import division
+
 from keras import Input
 from keras.engine import Model
 from keras.layers import Conv2D, concatenate, MaxPooling2D, ELU
@@ -48,8 +50,8 @@ class Colorizer(Model):
 
         # Get the output of feature extractor and add up-sampling layers on top of the features
         x = feature_extractor(L)
-        for filters, concat_layer in zip([512, 256, 128, 64, 32], [e4, e3, e2, e1, L]):
-            for i in range(3):
+        for filters, concat_layer in zip([128, 128, 64, 64, 64], [e4, e3, e2, e1, L]):
+            for i in range(2):
                 x = Conv2D(filters, kernel_size=(3, 3), activation=None, padding='same')(x)
                 x = ELU()(x)
             x = SubpixelUpSampling(filters=filters, kernel_size=3, ratio=2, padding='same')(x)

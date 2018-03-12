@@ -6,21 +6,11 @@ from keras.layers import Conv2D
 
 
 class SubpixelUpSampling(Conv2D):
-    def __init__(self, filters,
-                 kernel_size,
-                 ratio,
-                 padding='valid',
-                 data_format=None,
-                 strides=(1, 1),
-                 activation=None,
-                 use_bias=True,
-                 kernel_initializer='glorot_uniform',
-                 bias_initializer='zeros',
-                 kernel_regularizer=None,
-                 bias_regularizer=None,
-                 activity_regularizer=None,
-                 kernel_constraint=None,
-                 bias_constraint=None,
+    def __init__(self, filters, kernel_size, ratio,
+                 padding='valid', data_format=None, strides=(1, 1), activation=None,
+                 use_bias=True, kernel_initializer='glorot_uniform', bias_initializer='zeros',
+                 kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None,
+                 kernel_constraint=None, bias_constraint=None,
                  **kwargs):
         super(SubpixelUpSampling, self).__init__(filters=ratio * ratio * filters,
                                                  kernel_size=kernel_size, strides=strides, padding=padding,
