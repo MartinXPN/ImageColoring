@@ -70,7 +70,7 @@ def main():
     ''' Prepare Models '''
     colorizer = Colorizer(feature_extractor_model_path=args.feature_extractor_model_path,
                           input_shape=(args.image_size, args.image_size, 1))
-    colorizer.compile(optimizer='adam', loss='mae')
+    colorizer.compile(optimizer='adam', loss='mse')
 
     ''' View summary of the models '''
     print('\n\n\n\nColorizer:'),    colorizer.summary()
