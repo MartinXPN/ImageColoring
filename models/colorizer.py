@@ -2,7 +2,7 @@ from __future__ import division
 
 from keras import Input
 from keras.engine import Model
-from keras.layers import Conv2D, concatenate, MaxPooling2D, ELU
+from keras.layers import Conv2D, MaxPooling2D, ELU, Concatenate
 
 from layers.upsampling import SubpixelUpSampling
 
@@ -39,7 +39,7 @@ class Colorizer(Model):
                 x = Conv2D(filters, kernel_size=(3, 3), activation=None, padding='same')(x)
                 x = ELU()(x)
             x = SubpixelUpSampling(filters=filters, kernel_size=3, ratio=2, padding='same')(x)
-            x = concatenate(inputs=[concat_layer, x])
+            x = Concatenate()([concat_layer, x])
 
         ''' Post-processing after pix2pix-like connections '''
         for filters in [64, 64, 32]:
