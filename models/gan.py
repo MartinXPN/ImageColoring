@@ -10,14 +10,14 @@ class CombinedGan(Model):
             super(CombinedGan, self).__init__(inputs=inputs, outputs=outputs, name=name)
             return
 
-        L = Input(shape=input_shape)
-        ab = generator(L)
-        Lab = Concatenate()([L, ab])
+        gray = Input(shape=input_shape)
+        colorizer_output = generator(gray)
+        critic_input = Concatenate()([gray, colorizer_output])
 
         # we only want to be able to train generator/colorizer for the combined model
         critic.trainable = False
-        critic_output = critic(Lab)
+        critic_output = critic(critic_input)
 
-        super(CombinedGan, self).__init__(inputs=L,                     # Only one input - grey image
-                                          outputs=[critic_output, ab],  # colorized output for L1 loss
+        super(CombinedGan, self).__init__(inputs=gray,                                  # Only one input - grey image
+                                          outputs=[critic_output, colorizer_output],    # colorized output for L1 loss
                                           name=name)

@@ -9,9 +9,9 @@ from util.clipweights import WeightClip
 weight_init = RandomNormal(mean=0., stddev=0.02)
 
 
-def Conv2DBatchNormalizationLeakyReLU(input_layer,
-                                      filters, kernel_size, strides=(1, 1), padding='valid',
-                                      alpha=0.3):
+def Conv2DBatchNormLeakyReLU(input_layer,
+                             filters, kernel_size, strides=(1, 1), padding='valid',
+                             alpha=0.3):
     res = input_layer
     res = Conv2D(filters=filters,
                  kernel_size=kernel_size,
@@ -37,9 +37,9 @@ class Critic(Model):
         lab = Input(shape=input_shape)
         x = lab
         for filters in [64, 256, 512, 64]:
-            x = Conv2DBatchNormalizationLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(1, 1))
-            x = Conv2DBatchNormalizationLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(1, 1))
-            x = Conv2DBatchNormalizationLeakyReLU(x, filters=filters, kernel_size=(5, 5), strides=(2, 2))
+            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(1, 1))
+            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(1, 1))
+            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=(5, 5), strides=(2, 2))
             x = Dropout(rate=0.3)(x)
 
         ''' Fully connected layers '''
