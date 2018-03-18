@@ -78,7 +78,7 @@ class Gym(object):
 
             [_, loss, l1_loss] = self.combined.train_on_batch(x=fool_inputs, y=[fool_labels, target_images])
             self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
-                                     logs={'Target image L1 loss': l1_loss, 'Fool critic loss': loss})
+                                     logs={'Target image difference loss': l1_loss, 'Fool critic loss': loss})
             return loss
 
         ''' Initialize counters '''
