@@ -7,7 +7,7 @@ import numpy as np
 from scipy.misc import imsave
 from keras import backend as K
 from keras.callbacks import TensorBoard
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop, Adam
 from keras.preprocessing.image import ImageDataGenerator
 
 import generators
@@ -128,7 +128,7 @@ def main():
     critic = Critic(input_shape=(args.image_size, args.image_size, 3))
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
     combined = CombinedGan(generator=colorizer, critic=critic, input_shape=(args.image_size, args.image_size, 1))
-    combined.compile(optimizer=RMSprop(lr=0.00005), loss=[wasserstein_loss, 'mae'])
+    combined.compile(optimizer=Adam(lr=3e-4), loss=[wasserstein_loss, 'mse'])
 
     ''' View summary of the models '''
     print('\n\n\n\nColorizer:'),    colorizer.summary()
