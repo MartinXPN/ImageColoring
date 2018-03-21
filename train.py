@@ -78,9 +78,12 @@ class Gym(object):
             fool_inputs, target_images = self.combined_data_generator.next()
             fool_labels = -np.ones(shape=len(fool_inputs))
 
-            [_, loss, l1_loss] = self.combined.train_on_batch(x=fool_inputs, y=[fool_labels, target_images])
+            # [_, loss, l1_loss] = self.combined.train_on_batch(x=fool_inputs, y=[fool_labels, target_images])
+            # self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
+            #                          logs={'Target image difference loss': l1_loss, 'Fool critic loss': loss})
+            loss = self.combined.train_on_batch(x=fool_inputs, y=fool_labels)
             self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
-                                     logs={'Target image difference loss': l1_loss, 'Fool critic loss': loss})
+                                     logs={'Fool critic loss': loss})
             print('Fool loss: ', loss)
             return loss
 
@@ -130,8 +133,9 @@ def main():
                           input_shape=(args.image_size, args.image_size, 1))
     critic = Critic(input_shape=(args.image_size, args.image_size, 3))
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
-    combined = CombinedGan(generator=colorizer, critic=critic, input_shape=(args.image_size, args.image_size, 1))
-    combined.compile(optimizer=Adam(lr=3e-4), loss=[wasserstein_loss, 'mse'])
+    combined = CombinedGan(generator=colorizer, critic=critic,
+                           input_shape=(args.image_size, args.image_size, 1), include_colorizer_output=False)
+    combined.compile(optimizer=Adam(lr=3e-4), loss=[wasserstein_loss])
 
     ''' View summary of the models '''
     print('\n\n\n\nColorizer:'),    colorizer.summary()
