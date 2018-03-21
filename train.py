@@ -55,19 +55,21 @@ class Gym(object):
             loss = self.critic.train_on_batch(x=real_images, y=real_labels)
             self.logger.on_epoch_end(epoch=train_critic_real.steps,
                                      logs={'Critic loss on real data': loss})
+            print('Loss on real data:', loss)
             return loss
 
         def train_critic_fake():
             # Train critic on fake data
             train_critic_fake.steps += 1
-            L = self.generator_data_generator.next()
-            ab = self.generator.predict(L)
-            fake_images = np.concatenate((L, ab), axis=3)
-            fake_labels = np.ones(shape=len(ab))
+            gray = self.generator_data_generator.next()
+            colors = self.generator.predict(gray)
+            fake_images = np.concatenate((gray, colors), axis=3)
+            fake_labels = np.ones(shape=len(colors))
 
             loss = self.critic.train_on_batch(x=fake_images, y=fake_labels)
             self.logger.on_epoch_end(epoch=train_critic_fake.steps,
                                      logs={'Critic loss on fake data': loss})
+            print('Loss on fake data:', loss)
             return loss
 
         def train_generator_fool_critic():
@@ -79,6 +81,7 @@ class Gym(object):
             [_, loss, l1_loss] = self.combined.train_on_batch(x=fool_inputs, y=[fool_labels, target_images])
             self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
                                      logs={'Target image difference loss': l1_loss, 'Fool critic loss': loss})
+            print('Fool loss: ', loss)
             return loss
 
         ''' Initialize counters '''
@@ -88,9 +91,9 @@ class Gym(object):
 
         ''' Start training '''
         for epoch in range(epochs):
+            while train_generator_fool_critic() > loss_threshold:   pass
             while train_critic_real() > loss_threshold:             pass
             while train_critic_fake() > loss_threshold:             pass
-            while train_generator_fool_critic() > loss_threshold:   pass
             if epoch % eval_interval == 0:
                 self.evaluate(epoch=epoch)
 
@@ -108,7 +111,7 @@ class Gym(object):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size',         default=5,      help='Batch size',                          type=int)
+    parser.add_argument('--batch_size',         default=64,     help='Batch size',                          type=int)
     parser.add_argument('--image_size',         default=224,    help='Batch size',                          type=int)
     parser.add_argument('--epoch_images',       default=5000,   help='Number of images seen in one epoch',  type=int)
     parser.add_argument('--loss_threshold',     default=-0.1,   help='Switch to next training step',        type=float)

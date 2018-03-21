@@ -50,6 +50,7 @@ class ImageDataGenerator(DirectoryIterator):
             fname = self.filenames[j]
             img = load_img(os.path.join(self.directory, fname), grayscale=grayscale, target_size=self.target_size)
             x = img_to_array(img, data_format=self.data_format)
+            x = self.image_data_generator.preprocessing_function(x)
             x = self.image_data_generator.random_transform(x)
             x = self.image_data_generator.standardize(x)
             batch_x.append(x)

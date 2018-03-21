@@ -34,16 +34,14 @@ class Critic(Model):
             return
 
         ''' VGG-like conv filters '''
-        lab = Input(shape=input_shape)
-        x = lab
-        for filters in [32, 64, 128, 64]:
-            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(1, 1))
-            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=(3, 3), strides=(2, 2))
-            x = Dropout(rate=0.3)(x)
+        input_image = Input(shape=input_shape)
+        x = input_image
+        for filters in [32, 64, 256, 128]:  # 32, 16, 8, 4
+            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=(5, 5), strides=(2, 2))
 
         ''' Fully connected layers '''
         x = Flatten()(x)
-        for units in [256, 64]:
+        for units in [64]:
             x = Dense(units=units, activation=None,
                       kernel_initializer=weight_init, kernel_constraint=WeightClip(-0.01, 0.01),
                       bias_constraint=WeightClip(-0.01, 0.01))(x)
@@ -51,4 +49,4 @@ class Critic(Model):
             x = Dropout(rate=0.3)(x)
 
         out = Dense(1, activation='linear')(x)
-        super(Critic, self).__init__(inputs=lab, outputs=out, name=name)
+        super(Critic, self).__init__(inputs=input_image, outputs=out, name=name)
