@@ -47,7 +47,7 @@ class Gym(object):
     def train(self, loss_threshold=-0.1, eval_interval=100, epochs=100000):
 
         def train_critic_real():
-            # Train critic on real data
+            """ Train critic on real data """
             train_critic_real.steps += 1
             real_images = self.real_data_generator.next()
             real_labels = -np.ones(shape=len(real_images))
@@ -59,7 +59,7 @@ class Gym(object):
             return loss
 
         def train_critic_fake():
-            # Train critic on fake data
+            """ Train critic on fake data """
             train_critic_fake.steps += 1
             gray = self.generator_data_generator.next()
             colors = self.generator.predict(gray)
@@ -73,7 +73,7 @@ class Gym(object):
             return loss
 
         def train_generator_fool_critic():
-            # Train generator to fool the critic
+            """ Train generator to fool the critic """
             train_generator_fool_critic.steps += 1
             fool_inputs, target_images = self.combined_data_generator.next()
             fool_labels = -np.ones(shape=len(fool_inputs))
@@ -135,7 +135,7 @@ def main():
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
     combined = CombinedGan(generator=colorizer, critic=critic,
                            input_shape=(args.image_size, args.image_size, 1), include_colorizer_output=False)
-    combined.compile(optimizer=Adam(lr=3e-4), loss=[wasserstein_loss])
+    combined.compile(optimizer=Adam(lr=3e-4), loss=[wasserstein_loss])  # loss=[wasserstein_loss, 'mse']
 
     ''' View summary of the models '''
     print('\n\n\n\nColorizer:'),    colorizer.summary()
