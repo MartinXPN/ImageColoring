@@ -94,9 +94,8 @@ class Gym(object):
 
         ''' Start training '''
         for epoch in range(epochs):
-            while train_generator_fool_critic() > loss_threshold:   pass
-            while train_critic_real() > loss_threshold:             pass
-            while train_critic_fake() > loss_threshold:             pass
+            while train_generator_fool_critic() > loss_threshold:                                   pass
+            while (train_critic_real() > loss_threshold) | (train_critic_fake() > loss_threshold):  pass
             if epoch % eval_interval == 0:
                 self.evaluate(epoch=epoch)
 
