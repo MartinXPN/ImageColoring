@@ -78,11 +78,11 @@ class Gym(object):
             fool_inputs, target_images = self.combined_data_generator.next()
             fool_labels = -np.ones(shape=len(fool_inputs))
 
-            # [_, loss, l1_loss]
+            # [sum, loss, l1_loss] or loss
             loss = self.combined.train_on_batch(x=fool_inputs,
                                                 y=[fool_labels, target_images] if include_target_image else fool_labels)
             self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
-                                     logs={'Target image difference loss': loss[2], 'Fool critic loss': loss[1]}  if include_target_image else
+                                     logs={'Fool critic loss': loss[1], 'Target image difference loss': loss[2]}  if include_target_image else
                                           {'Fool critic loss': loss})
             print('Fool loss: ', loss)
             return loss
