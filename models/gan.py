@@ -20,6 +20,6 @@ class CombinedGan(Model):
 
         # Include colorizer output as one of the outputs or not
         outputs = [critic_output, colorizer_output] if include_colorizer_output else critic_output
-        super(CombinedGan, self).__init__(inputs=gray,      # Only one input - grey image
-                                          outputs=outputs,  # colorized output for L1 loss
+        super(CombinedGan, self).__init__(inputs=gray,
+                                          outputs=outputs,
                                           name=name)

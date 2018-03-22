@@ -13,14 +13,10 @@ def Conv2DBatchNormLeakyReLU(input_layer,
                              filters, kernel_size, strides=(1, 1), padding='valid',
                              alpha=0.3):
     res = input_layer
-    res = Conv2D(filters=filters,
-                 kernel_size=kernel_size,
-                 strides=strides,
-                 activation=None,
-                 padding=padding,
+    res = Conv2D(filters=filters, kernel_size=kernel_size, strides=strides,
+                 activation=None, padding=padding,
                  kernel_initializer=weight_init,
-                 kernel_constraint=WeightClip(-0.01, 0.01),
-                 bias_constraint=WeightClip(-0.01, 0.01))(res)
+                 kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(res)
     res = BatchNormalization()(res)
     res = LeakyReLU(alpha=alpha)(res)
     return res
@@ -36,15 +32,15 @@ class Critic(Model):
         ''' VGG-like conv filters '''
         input_image = Input(shape=input_shape)
         x = input_image
-        for filters in [32, 64, 256, 128, 64]:
-            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=(5, 5), strides=(2, 2))
+        for filters, kernel_size, strides in zip([32, 64, 64, 128, 128], [5, 5, 5, 5, 3], [2, 2, 2, 2, 1]):
+            x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=kernel_size, strides=strides)
 
         ''' Fully connected layers '''
         x = Flatten()(x)
-        for units in [256, 128]:
+        for units in [128]:
             x = Dense(units=units, activation=None,
-                      kernel_initializer=weight_init, kernel_constraint=WeightClip(-0.01, 0.01),
-                      bias_constraint=WeightClip(-0.01, 0.01))(x)
+                      kernel_initializer=weight_init,
+                      kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(x)
             x = LeakyReLU()(x)
             x = Dropout(rate=0.3)(x)
 
