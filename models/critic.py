@@ -1,7 +1,7 @@
 from keras import Input
 from keras.engine import Model
 from keras.initializers import RandomNormal
-from keras.layers import Conv2D, BatchNormalization, LeakyReLU, Dense, Flatten, Dropout
+from keras.layers import Conv2D, BatchNormalization, LeakyReLU, Dense, Flatten, Dropout, Activation
 
 from util.clipweights import WeightClip
 
@@ -34,14 +34,17 @@ class Critic(Model):
         x = input_image
         for filters, kernel_size, strides in zip([32, 64, 64, 128, 128], [5, 5, 5, 5, 3], [2, 2, 2, 2, 1]):
             x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=kernel_size, strides=strides)
+            x = Dropout(rate=0.3)(x)
 
         ''' Fully connected layers '''
         x = Flatten()(x)
         for units in [128]:
-            x = Dense(units=units, activation='tanh',
+            x = Dense(units=units, activation=None,
                       kernel_initializer=weight_init,
                       kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(x)
-            x = Dropout(rate=0.3)(x)
+            x = BatchNormalization()(x)
+            x = Activation('tanh')(x)
+            x = Dropout(rate=0.1)(x)
 
         out = Dense(1, activation='linear')(x)
         super(Critic, self).__init__(inputs=input_image, outputs=out, name=name)
