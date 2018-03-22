@@ -1,14 +1,14 @@
 from __future__ import print_function
 
-import argparse
 import os
 
+import fire
 import numpy as np
-from scipy.misc import imsave
 from keras import backend as K
 from keras.callbacks import TensorBoard
 from keras.optimizers import RMSprop, Adam
 from keras.preprocessing.image import ImageDataGenerator
+from scipy.misc import imsave
 
 import generators
 from models.colorizer import Colorizer
@@ -44,7 +44,7 @@ class Gym(object):
         self.logger = logger
         self.logger.set_model(self.combined)
 
-    def train(self, loss_threshold=-0.1, eval_interval=100, epochs=100000):
+    def train(self, loss_threshold=-0.1, eval_interval=10, epochs=100000, include_target_image=False):
 
         def train_critic_real():
             """ Train critic on real data """
@@ -78,12 +78,12 @@ class Gym(object):
             fool_inputs, target_images = self.combined_data_generator.next()
             fool_labels = -np.ones(shape=len(fool_inputs))
 
-            # [_, loss, l1_loss] = self.combined.train_on_batch(x=fool_inputs, y=[fool_labels, target_images])
-            # self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
-            #                          logs={'Target image difference loss': l1_loss, 'Fool critic loss': loss})
-            loss = self.combined.train_on_batch(x=fool_inputs, y=fool_labels)
+            # [_, loss, l1_loss]
+            loss = self.combined.train_on_batch(x=fool_inputs,
+                                                y=[fool_labels, target_images] if include_target_image else fool_labels)
             self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
-                                     logs={'Fool critic loss': loss})
+                                     logs={'Target image difference loss': loss[2], 'Fool critic loss': loss[1]}  if include_target_image else
+                                          {'Fool critic loss': loss})
             print('Fool loss: ', loss)
             return loss
 
@@ -97,10 +97,10 @@ class Gym(object):
             ''' Train critic '''
             real_loss = fake_loss = 10
             while real_loss > loss_threshold or fake_loss > loss_threshold:
-                while real_loss > fake_loss + 0.2:      real_loss = train_critic_real()
                 while fake_loss > real_loss + 0.2:      fake_loss = train_critic_fake()
-                real_loss = train_critic_real()
+                while real_loss > fake_loss + 0.2:      real_loss = train_critic_real()
                 fake_loss = train_critic_fake()
+                real_loss = train_critic_real()
 
             ''' Train colorizer '''
             while train_generator_fool_critic() > loss_threshold:
@@ -122,30 +122,23 @@ class Gym(object):
         print('Done!')
 
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--batch_size',         default=64,     help='Batch size',                          type=int)
-    parser.add_argument('--image_size',         default=224,    help='Batch size',                          type=int)
-    parser.add_argument('--epoch_images',       default=5000,   help='Number of images seen in one epoch',  type=int)
-    parser.add_argument('--loss_threshold',     default=-0.1,   help='Switch to next training step',        type=float)
-    parser.add_argument('--train_data_dir',     default='/mnt/bolbol/raw-data/train',                       type=str)
-    parser.add_argument('--valid_data_dir',     default='/mnt/bolbol/raw-data/validation',                  type=str)
-    parser.add_argument('--logdir',             default='./logs',   help='Where to log the progres',        type=str)
-    parser.add_argument('--models_save_dir',    default='coloring_models',  help='Where to save models',    type=str)
-    parser.add_argument('--eval_images_dir',    default='colored_images',   help='Where to save images',    type=str)
-    parser.add_argument('--feature_extractor_model_path',
-                        default='finetune-70-2.15-no-top.hdf5',
-                        help='Path to VGG/Feature extractor model or weights')
-    args = parser.parse_args()
-
+def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_threshold=-0.1,
+         train_data_dir='/mnt/bolbol/coco', valid_data_dir='/mnt/bolbol/raw-data/validation',
+         log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
+         feature_extractor_model_path='finetune-70-2.15-no-top.hdf5',
+         include_target_image=False):
+    """ Train Wasserstein gan to colorize black and white images """
+    
     ''' Prepare Models '''
-    colorizer = Colorizer(feature_extractor_model_path=args.feature_extractor_model_path,
-                          input_shape=(args.image_size, args.image_size, 1))
-    critic = Critic(input_shape=(args.image_size, args.image_size, 3))
+    colorizer = Colorizer(feature_extractor_model_path=feature_extractor_model_path,
+                          input_shape=(image_size, image_size, 1))
+    critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
     combined = CombinedGan(generator=colorizer, critic=critic,
-                           input_shape=(args.image_size, args.image_size, 1), include_colorizer_output=False)
-    combined.compile(optimizer=Adam(lr=3e-4), loss=[wasserstein_loss])  # loss=[wasserstein_loss, 'mse']
+                           input_shape=(image_size, image_size, 1),
+                           include_colorizer_output=include_target_image)
+    combined.compile(optimizer=Adam(lr=3e-4),
+                     loss=[wasserstein_loss, 'mse'] if include_target_image else [wasserstein_loss])
 
     ''' View summary of the models '''
     print('\n\n\n\nColorizer:'),    colorizer.summary()
@@ -156,33 +149,35 @@ def main():
     greyscale_generator = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
     real_data_generator = ImageDataGenerator(preprocessing_function=rgb_to_target_image)
     combined_generator  = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
-    greyscale_generator = generators.ImageDataGenerator(directory=args.train_data_dir,
+    greyscale_generator = generators.ImageDataGenerator(directory=train_data_dir,
                                                         image_data_generator=greyscale_generator,
-                                                        target_size=(args.image_size, args.image_size),
-                                                        batch_size=args.batch_size,
+                                                        target_size=(image_size, image_size),
+                                                        batch_size=batch_size,
                                                         color_mode='rgb')
-    real_data_generator = generators.ImageDataGenerator(directory=args.train_data_dir,
+    real_data_generator = generators.ImageDataGenerator(directory=train_data_dir,
                                                         image_data_generator=real_data_generator,
-                                                        target_size=(args.image_size, args.image_size),
-                                                        batch_size=args.batch_size,
+                                                        target_size=(image_size, image_size),
+                                                        batch_size=batch_size,
                                                         color_mode='rgb')
-    combined_generator = generators.ImageDataGenerator(directory=args.train_data_dir,
+    combined_generator = generators.ImageDataGenerator(directory=train_data_dir,
                                                        image_data_generator=combined_generator,
-                                                       target_size=(args.image_size, args.image_size),
-                                                       batch_size=args.batch_size,
+                                                       target_size=(image_size, image_size),
+                                                       batch_size=batch_size,
                                                        color_mode='rgb',
                                                        class_mode='input')
 
-    logger = TensorBoard(log_dir=args.logdir)
+    logger = TensorBoard(log_dir=log_dir)
     gym = Gym(generator=colorizer, critic=critic, combined=combined,
               generator_data_generator=greyscale_generator,
               real_data_generator=real_data_generator,
               combined_data_generator=combined_generator,
               logger=logger,
-              models_save_dir=args.models_save_dir,
-              colored_images_save_dir=args.eval_images_dir)
-    gym.train(loss_threshold=args.loss_threshold)
+              models_save_dir=models_save_dir,
+              colored_images_save_dir=colored_images_save_dir)
+    gym.train(loss_threshold=loss_threshold,
+              eval_interval=eval_interval, epochs=epochs,
+              include_target_image=include_target_image)
 
 
 if __name__ == '__main__':
-    main()
+    fire.Fire(main)
