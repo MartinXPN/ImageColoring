@@ -38,10 +38,9 @@ class Critic(Model):
         ''' Fully connected layers '''
         x = Flatten()(x)
         for units in [128]:
-            x = Dense(units=units, activation=None,
+            x = Dense(units=units, activation='tanh',
                       kernel_initializer=weight_init,
                       kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(x)
-            x = LeakyReLU()(x)
             x = Dropout(rate=0.3)(x)
 
         out = Dense(1, activation='linear')(x)
