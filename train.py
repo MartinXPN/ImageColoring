@@ -125,7 +125,7 @@ class Gym(object):
 def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_threshold=-0.1,
          train_data_dir='/mnt/bolbol/coco', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         feature_extractor_model_path='finetune-70-2.15-no-top.hdf5',
+         feature_extractor_model_path='finetuned-vgg-no-top.hdf5',
          include_target_image=False):
     """ Train Wasserstein gan to colorize black and white images """
     
