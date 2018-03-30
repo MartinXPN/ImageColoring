@@ -55,7 +55,7 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100,
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         feature_extractor_model_path='finetune-70-2.15-no-top.hdf5'):
+         feature_extractor_model_path='finetuned-vgg-no-top.hdf5'):
     """ Train only colorizer on target images """
 
     ''' Prepare Models '''
