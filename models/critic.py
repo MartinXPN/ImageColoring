@@ -1,10 +1,9 @@
 from keras import Input
 from keras.engine import Model
 from keras.initializers import RandomNormal
-from keras.layers import Conv2D, BatchNormalization, LeakyReLU, Dense, Flatten, Dropout, Activation
+from keras.layers import Conv2D, BatchNormalization, LeakyReLU, Dense, Flatten, Dropout
 
 from util.clipweights import WeightClip
-
 
 weight_init = RandomNormal(mean=0., stddev=0.02)
 
@@ -43,8 +42,8 @@ class Critic(Model):
                       kernel_initializer=weight_init,
                       kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(x)
             x = BatchNormalization()(x)
-            x = Activation('tanh')(x)
+            x = LeakyReLU()(x)
             x = Dropout(rate=0.1)(x)
 
-        out = Dense(1, activation='linear')(x)
+        out = Dense(1, activation=None)(x)
         super(Critic, self).__init__(inputs=input_image, outputs=out, name=name)
