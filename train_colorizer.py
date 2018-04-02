@@ -4,6 +4,7 @@ import os
 import fire
 
 from keras.callbacks import TensorBoard
+from keras.layers import LeakyReLU
 from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
@@ -55,12 +56,13 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100,
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         feature_extractor_model_path='finetuned-vgg-no-top.hdf5'):
+         feature_extractor_model_path=None):
     """ Train only colorizer on target images """
 
     ''' Prepare Models '''
     colorizer = Colorizer(feature_extractor_model_path=feature_extractor_model_path,
-                          input_shape=(image_size, image_size, 1))
+                          input_shape=(image_size, image_size, 1),
+                          feature_extractor_activation='relu' if feature_extractor_model_path else LeakyReLU)
     colorizer.compile(optimizer=Adam(lr=3e-4), loss='mse')
 
     ''' View summary of the models '''

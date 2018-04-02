@@ -132,11 +132,12 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     """ Train Wasserstein gan to colorize black and white images """
 
     ''' Prepare Models '''
-    if colorizer_model_path:    colorizer = load_model(filepath=colorizer_model_path, compile=False,
-                                                       custom_objects={'Colorizer': Colorizer})
-    else:                       colorizer = Colorizer(feature_extractor_model_path=feature_extractor_model_path,
-                                                      input_shape=(image_size, image_size, 1),
-                                                      feature_extractor_activation=LeakyReLU)
+    colorizer = load_model(filepath=colorizer_model_path, custom_objects={'Colorizer': Colorizer}, compile=False) \
+                if colorizer_model_path else \
+                Colorizer(feature_extractor_model_path=feature_extractor_model_path,
+                          input_shape=(image_size, image_size, 1),
+                          feature_extractor_activation='relu' if feature_extractor_model_path else LeakyReLU)
+
     critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
     combined = CombinedGan(generator=colorizer, critic=critic,
