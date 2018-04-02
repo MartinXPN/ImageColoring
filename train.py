@@ -7,7 +7,6 @@ import keras
 import numpy as np
 from keras import backend as K
 from keras.callbacks import Callback
-from keras.layers import LeakyReLU
 from keras.models import load_model
 from keras.optimizers import RMSprop, Adam
 from keras.preprocessing.image import ImageDataGenerator
@@ -128,7 +127,7 @@ class Gym(object):
 def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_threshold=-0.1,
          train_data_dir='/mnt/bolbol/coco', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         feature_extractor_model_path=None, colorizer_model_path=None,
+         feature_extractor_model_path=None, train_feature_extractor=False, colorizer_model_path=None,
          include_target_image=False):
     """ Train Wasserstein gan to colorize black and white images """
 
@@ -137,7 +136,7 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                 if colorizer_model_path else \
                 Colorizer(feature_extractor_model_path=feature_extractor_model_path,
                           input_shape=(image_size, image_size, 1),
-                          feature_extractor_activation='relu' if feature_extractor_model_path else LeakyReLU)
+                          train_feature_extractor=train_feature_extractor)
 
     critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
