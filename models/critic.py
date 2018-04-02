@@ -1,7 +1,7 @@
 from keras import Input
 from keras.engine import Model
 from keras.initializers import RandomNormal
-from keras.layers import Conv2D, BatchNormalization, LeakyReLU, Dense, Flatten, Dropout
+from keras.layers import Conv2D, BatchNormalization, LeakyReLU, Dense, Flatten, Dropout, Activation
 
 from util.clipweights import WeightClip
 
@@ -31,7 +31,7 @@ class Critic(Model):
         ''' VGG-like conv filters '''
         input_image = Input(shape=input_shape)
         x = input_image
-        for filters, kernel_size, strides in zip([32, 64, 64, 128, 128], [5, 5, 5, 5, 3], [2, 2, 2, 2, 1]):
+        for filters, kernel_size, strides in zip([32, 64, 64, 128, 256], [5, 5, 5, 5, 3], [2, 2, 2, 2, 1]):
             x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=kernel_size, strides=strides)
             x = Dropout(rate=0.3)(x)
 
@@ -42,7 +42,7 @@ class Critic(Model):
                       kernel_initializer=weight_init,
                       kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(x)
             x = BatchNormalization()(x)
-            x = LeakyReLU()(x)
+            x = Activation('tanh')(x)
             x = Dropout(rate=0.1)(x)
 
         out = Dense(1, activation=None)(x)
