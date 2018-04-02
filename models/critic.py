@@ -31,7 +31,7 @@ class Critic(Model):
         ''' VGG-like conv filters '''
         input_image = Input(shape=input_shape)
         x = input_image
-        for filters, kernel_size, strides in zip([32, 64, 64, 128, 256], [5, 5, 5, 5, 3], [2, 2, 2, 2, 1]):
+        for filters, kernel_size, strides in zip([32, 64, 128, 256, 256], [5, 5, 5, 5, 3], [2, 2, 2, 2, 1]):
             x = Conv2DBatchNormLeakyReLU(x, filters=filters, kernel_size=kernel_size, strides=strides)
             x = Dropout(rate=0.3)(x)
 

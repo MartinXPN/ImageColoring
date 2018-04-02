@@ -3,9 +3,10 @@ from __future__ import print_function
 import os
 
 import fire
+import keras
 import numpy as np
 from keras import backend as K
-from keras.callbacks import TensorBoard
+from keras.callbacks import Callback
 from keras.layers import LeakyReLU
 from keras.models import load_model
 from keras.optimizers import RMSprop, Adam
@@ -172,7 +173,7 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                                                        color_mode='rgb',
                                                        class_mode='input')
 
-    logger = TensorBoard(log_dir=log_dir)
+    logger = keras.callbacks.TensorBoard(log_dir=log_dir) if K.backend() == 'tensorflow' else Callback()
     gym = Gym(generator=colorizer, critic=critic, combined=combined,
               generator_data_generator=greyscale_generator,
               real_data_generator=real_data_generator,
