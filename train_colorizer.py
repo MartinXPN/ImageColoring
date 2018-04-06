@@ -9,7 +9,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
 import generators
-from models.colorizer import Colorizer
+from models.colorizer import Colorizer, VGGColorizer
 from util.data import rgb_to_colorizer_input, network_prediction_to_rgb
 
 
@@ -55,13 +55,14 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100,
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         feature_extractor_model_path=None, train_feature_extractor=False):
+         vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
 
     ''' Prepare Models '''
-    colorizer = Colorizer(feature_extractor_model_path=feature_extractor_model_path,
-                          input_shape=(image_size, image_size, 1),
-                          train_feature_extractor=train_feature_extractor)
+    if not vgg:     colorizer = Colorizer(input_shape=(image_size, image_size, 1))
+    else:           colorizer = VGGColorizer(input_shape=(image_size, image_size, 1),
+                                             feature_extractor_model_path=feature_extractor_model_path,
+                                             train_feature_extractor=train_feature_extractor)
     colorizer.compile(optimizer=Adam(lr=3e-4), loss='mse')
 
     ''' View summary of the models '''
