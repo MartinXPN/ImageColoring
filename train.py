@@ -3,16 +3,17 @@ from __future__ import print_function
 import os
 
 import fire
+import keras
 import numpy as np
 from keras import backend as K
-from keras.callbacks import TensorBoard
+from keras.callbacks import Callback
 from keras.models import load_model
 from keras.optimizers import RMSprop, Adam
 from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
 import generators
-from models.colorizer import Colorizer
+from models.colorizer import Colorizer, VGGColorizer
 from models.critic import Critic
 from models.gan import CombinedGan
 from util.data import rgb_to_colorizer_input, rgb_to_target_image, network_prediction_to_rgb
@@ -124,17 +125,19 @@ class Gym(object):
 
 
 def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_threshold=-0.1,
-         train_data_dir='/mnt/bolbol/coco', valid_data_dir='/mnt/bolbol/raw-data/validation',
+         train_data_dir='/mnt/bolbol/raw-data/train',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         feature_extractor_model_path='finetuned-vgg-no-top.hdf5', colorizer_model_path=None,
+         vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
+         colorizer_model_path=None,
          include_target_image=False):
     """ Train Wasserstein gan to colorize black and white images """
 
     ''' Prepare Models '''
-    if colorizer_model_path:    colorizer = load_model(filepath=colorizer_model_path, compile=False,
-                                                       custom_objects={'Colorizer': Colorizer})
-    else:                       colorizer = Colorizer(feature_extractor_model_path=feature_extractor_model_path,
-                                                      input_shape=(image_size, image_size, 1))
+    if colorizer_model_path:    colorizer = load_model(filepath=colorizer_model_path, custom_objects={'Colorizer': Colorizer}, compile=False)
+    elif not vgg:               colorizer = Colorizer(input_shape=(image_size, image_size, 1))
+    else:                       colorizer = VGGColorizer(input_shape=(image_size, image_size, 1),
+                                                         feature_extractor_model_path=feature_extractor_model_path,
+                                                         train_feature_extractor=train_feature_extractor)
     critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
     combined = CombinedGan(generator=colorizer, critic=critic,
@@ -169,7 +172,7 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                                                        color_mode='rgb',
                                                        class_mode='input')
 
-    logger = TensorBoard(log_dir=log_dir)
+    logger = keras.callbacks.TensorBoard(log_dir=log_dir) if K.backend() == 'tensorflow' else Callback()
     gym = Gym(generator=colorizer, critic=critic, combined=combined,
               generator_data_generator=greyscale_generator,
               real_data_generator=real_data_generator,
