@@ -11,8 +11,7 @@ weight_init = RandomNormal(mean=0., stddev=0.02)
 def Conv2DBatchNormPReLU(input_layer,
                          filters, kernel_size, strides=(1, 1), padding='valid'):
     res = input_layer
-    res = Conv2D(filters=filters, kernel_size=kernel_size, strides=strides,
-                 activation=None, padding=padding,
+    res = Conv2D(filters=filters, kernel_size=kernel_size, strides=strides, activation=None, padding=padding,
                  kernel_initializer=weight_init,
                  kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(res)
     res = BatchNormalization()(res)
@@ -30,13 +29,15 @@ class Critic(Model):
         ''' VGG-like conv filters '''
         input_image = Input(shape=input_shape)
         x = input_image
-        for filters, kernel_size, strides in zip([32, 64, 128, 256, 256], [5, 5, 5, 5, 3], [2, 2, 2, 2, 1]):
+        for filters, kernel_size, strides in zip([32, 64, 128, 256, 256], [5, 5, 5, 5, 3], [2, 2, 2, 1, 1]):
+            x = Conv2DBatchNormPReLU(x, filters=filters, kernel_size=3, strides=1)
+            x = Conv2DBatchNormPReLU(x, filters=filters, kernel_size=3, strides=1)
             x = Conv2DBatchNormPReLU(x, filters=filters, kernel_size=kernel_size, strides=strides)
             x = Dropout(rate=0.1)(x)
 
         ''' Fully connected layers '''
         x = Flatten()(x)
-        for units in [128]:
+        for units in [512, 512]:
             x = Dense(units=units, activation=None,
                       kernel_initializer=weight_init,
                       kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(x)
