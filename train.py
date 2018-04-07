@@ -87,7 +87,7 @@ class Gym(object):
                                      logs={'Fool critic loss': loss[1], 'Target image difference loss': loss[2]}  if include_target_image else
                                           {'Fool critic loss': loss})
             print('Fool loss: ', loss)
-            return loss
+            return loss[1] if include_target_image else loss
 
         ''' Initialize counters '''
         train_critic_real.steps = 0
