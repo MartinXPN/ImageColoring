@@ -8,7 +8,7 @@ import numpy as np
 from keras import backend as K
 from keras.callbacks import Callback
 from keras.models import load_model
-from keras.optimizers import RMSprop, Adam
+from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
@@ -142,11 +142,11 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     else:                       colorizer = Colorizer(input_shape=(image_size, image_size, 1))
 
     critic = Critic(input_shape=(image_size, image_size, 3))
-    critic.compile(optimizer=RMSprop(lr=0.00005), loss=wasserstein_loss)
+    critic.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9), loss=wasserstein_loss)
     combined = CombinedGan(generator=colorizer, critic=critic,
                            input_shape=(image_size, image_size, 1),
                            include_colorizer_output=include_target_image)
-    combined.compile(optimizer=Adam(lr=3e-4),
+    combined.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9),
                      loss=[wasserstein_loss, 'mse'] if include_target_image else [wasserstein_loss])
 
     ''' View summary of the models '''
