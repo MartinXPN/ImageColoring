@@ -80,3 +80,10 @@ class ClassifierMapper(DataMapper):
 
     def rgb_to_colorizer_input(self, rgb_image):
         return self.rgb_to_input(rgb_image)
+
+
+def get_mapper(color_space):
+    color_space = color_space.lower()
+    if color_space == 'yuv':    return YUVMapper()
+    elif color_space == 'lab':  return LabMapper()
+    else:                       raise NotImplementedError('No implementation found for the specified color space')

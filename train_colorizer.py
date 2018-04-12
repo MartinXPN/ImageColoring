@@ -1,8 +1,8 @@
 from __future__ import print_function
 
 import os
-import fire
 
+import fire
 from keras.callbacks import TensorBoard
 from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
@@ -10,7 +10,7 @@ from scipy.misc import imsave
 
 import generators
 from models.colorizer import Colorizer, VGGColorizer
-from util.data import YUVMapper, LabMapper
+from util.data import get_mapper
 
 
 class Gym(object):
@@ -58,12 +58,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
-
-    ''' Prepare data mapping '''
-    color_space = color_space.lower()
-    if color_space == 'yuv':    data_mapper = YUVMapper()
-    elif color_space == 'lab':  data_mapper = LabMapper()
-    else:                       raise NotImplementedError('No implementation found for the specified color space')
+    data_mapper = get_mapper(color_space)
 
     ''' Prepare Models '''
     if not vgg:     colorizer = Colorizer(input_shape=(image_size, image_size, 1))

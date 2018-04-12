@@ -16,7 +16,7 @@ import generators
 from models.colorizer import Colorizer, VGGColorizer
 from models.critic import Critic
 from models.gan import CombinedGan
-from util.data import YUVMapper, LabMapper
+from util.data import get_mapper
 
 
 def wasserstein_loss(target, output):
@@ -132,12 +132,7 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
          colorizer_model_path=None,
          include_target_image=False):
     """ Train Wasserstein gan to colorize black and white images """
-
-    ''' Prepare data mapping '''
-    color_space = color_space.lower()
-    if color_space == 'yuv':    data_mapper = YUVMapper()
-    elif color_space == 'lab':  data_mapper = LabMapper()
-    else:                       raise NotImplementedError('No implementation found for the specified color space')
+    data_mapper = get_mapper(color_space)
 
     ''' Prepare Models '''
     if colorizer_model_path:    colorizer = load_model(filepath=colorizer_model_path, compile=False,
