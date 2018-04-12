@@ -8,7 +8,6 @@ from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
-import generators
 from models.colorizer import get_colorizer
 from util.data import get_mapper
 
@@ -36,20 +35,24 @@ class Gym(object):
             self.evaluate(epoch=epoch)
             for step in range(steps_per_epoch):
                 batches += 1
-                input_images, target_images = self.data_generator.next()
+                rgb_images = next(self.data_generator)
+                input_images, target_images = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_colorizer_input,
+                                                                                self.data_mapper.rgb_to_colorizer_target])
                 loss = self.colorizer.train_on_batch(x=input_images, y=target_images)
                 print('epoch: {}, step: {}, Loss: {}'.format(epoch, step, loss))
                 self.logger.on_epoch_end(epoch=batches, logs={'train loss': loss})
 
     def evaluate(self, epoch):
         print('Evaluating epoch {} ...'.format(epoch), end='\t')
-        input_images, target_images = self.data_generator.next()
+        rgb_images = next(self.data_generator)
+        input_images = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_colorizer_input])
         colored_images = self.colorizer.predict(input_images)
+
         for i, image in enumerate(colored_images):
-            rgb_prediction = self.data_mapper.network_prediction_to_rgb(colored_images[i], input_images[i])
-            imsave(name=os.path.join(self.colored_images_save_dir, str(epoch) + '-' + str(i) + '.jpg'),
-                   arr=rgb_prediction)
-        self.colorizer.save(os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
+            rgb_prediction = self.data_mapper.network_prediction_to_rgb(prediction=colored_images[i], inputs=input_images[i])
+            imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-colored.jpg'.format(epoch, i)), arr=rgb_prediction)
+            imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-target.jpg'.format(epoch, i)), arr=rgb_images[i])
+        self.colorizer.save(filepath=os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
         print('Done!')
 
 
@@ -69,13 +72,11 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
     print('\n\n\n\nColorizer:'),    colorizer.summary()
 
     ''' Prepare data generators '''
-    generator = ImageDataGenerator(preprocessing_function=data_mapper.rgb_to_colorizer_input)
-    train_generator = generators.ImageDataGenerator(directory=train_data_dir,
-                                                    image_data_generator=generator,
-                                                    target_size=(image_size, image_size),
-                                                    batch_size=batch_size,
-                                                    color_mode='rgb',
-                                                    class_mode='input')
+    train_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
+                                                               target_size=(image_size, image_size),
+                                                               batch_size=batch_size,
+                                                               color_mode='rgb',
+                                                               class_mode=None)
 
     logger = TensorBoard(log_dir=log_dir)
     gym = Gym(colorizer=colorizer,

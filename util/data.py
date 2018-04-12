@@ -3,6 +3,16 @@ from skimage.color import yuv2rgb, rgb2yuv, lab2rgb, rgb2lab
 
 
 class DataMapper(object):
+
+    def map(self, batch, mappings):
+        res = []
+        for i, mapping in enumerate(mappings):
+            res.append([])
+            for sample in batch:
+                res[i].append(mapping(sample))
+            res[i] = np.array(res[i])
+        return res
+
     def network_prediction_to_rgb(self, prediction, inputs):
         raise NotImplementedError('You need to implement mapping from a colorizer network prediction to a valid'
                                   'rgb image')
