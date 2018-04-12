@@ -49,7 +49,7 @@ class Gym(object):
             """ Train critic on real data """
             train_critic_real.steps += 1
             rgb_images = next(self.image_generator)
-            real_images = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_target_image])
+            real_images = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_target_image)
             real_labels = -np.ones(shape=len(real_images))
 
             loss = self.critic.train_on_batch(x=real_images, y=real_labels)
@@ -62,7 +62,7 @@ class Gym(object):
             """ Train critic on fake data """
             train_critic_fake.steps += 1
             rgb_images = next(self.image_generator)
-            gray = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_colorizer_input])
+            gray = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_colorizer_input)
             colors = self.generator.predict(gray)
             fake_images = np.concatenate((gray, colors), axis=3)
             fake_labels = np.ones(shape=len(colors))
@@ -116,6 +116,7 @@ class Gym(object):
     def evaluate(self, epoch):
         print('Evaluating epoch {} ...'.format(epoch), end='\t')
         rgb_images = next(self.image_generator)
+        print(rgb_images.shape)
         input_images = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_colorizer_input])
         colored_images = self.generator.predict(input_images)
 
@@ -157,7 +158,8 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     image_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
                                                                target_size=(image_size, image_size),
                                                                batch_size=batch_size,
-                                                               color_mode='rgb')
+                                                               color_mode='rgb',
+                                                               class_mode=None)
 
     logger = keras.callbacks.TensorBoard(log_dir=log_dir) if K.backend() == 'tensorflow' else Callback()
     gym = Gym(generator=colorizer, critic=critic, combined=combined,

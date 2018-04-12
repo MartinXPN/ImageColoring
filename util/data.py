@@ -5,13 +5,17 @@ from skimage.color import yuv2rgb, rgb2yuv, lab2rgb, rgb2lab
 class DataMapper(object):
 
     def map(self, batch, mappings):
+        if type(mappings) not in {list, tuple}:
+            mappings = [mappings]
         res = []
         for i, mapping in enumerate(mappings):
             res.append([])
             for sample in batch:
                 res[i].append(mapping(sample))
             res[i] = np.array(res[i])
-        return res
+
+        if len(res) == 1:   return res[0]
+        else:               return res
 
     def network_prediction_to_rgb(self, prediction, inputs):
         raise NotImplementedError('You need to implement mapping from a colorizer network prediction to a valid'
@@ -37,7 +41,7 @@ class YUVMapper(DataMapper):
         return yuv2rgb(yuv)
 
     def rgb_to_target_image(self, rgb_image):
-        yuv = rgb2yuv(rgb_image / 255.)
+        yuv = rgb2yuv(rgb_image.copy() / 255.)
         yuv[:, :, 1:] *= 2.
         return yuv
 
@@ -45,7 +49,7 @@ class YUVMapper(DataMapper):
         return self.rgb_to_target_image(rgb_image)[:, :, 1:]
 
     def rgb_to_colorizer_input(self, rgb_image):
-        yuv = rgb2yuv(rgb_image / 255.)
+        yuv = rgb2yuv(rgb_image.copy() / 255.)
         res = yuv[:, :, :1]
         return res
 
@@ -58,7 +62,7 @@ class LabMapper(DataMapper):
         return lab2rgb(lab)
 
     def rgb_to_target_image(self, rgb_image):
-        lab = rgb2lab(rgb_image / 255.)
+        lab = rgb2lab(rgb_image.copy() / 255.)
         lab[:, :, :1] /= 100.
         lab[:, :, 1:] /= 128.
         return lab
@@ -67,7 +71,7 @@ class LabMapper(DataMapper):
         return self.rgb_to_target_image(rgb_image)[:, :, 1:]
 
     def rgb_to_colorizer_input(self, rgb_image):
-        lab = rgb2lab(rgb_image / 255.)
+        lab = rgb2lab(rgb_image.copy() / 255.)
         res = lab[:, :, :1]
         res /= 100.
         return res

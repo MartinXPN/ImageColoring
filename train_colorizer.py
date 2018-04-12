@@ -45,7 +45,7 @@ class Gym(object):
     def evaluate(self, epoch):
         print('Evaluating epoch {} ...'.format(epoch), end='\t')
         rgb_images = next(self.data_generator)
-        input_images = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_colorizer_input])
+        input_images = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_colorizer_input)
         colored_images = self.colorizer.predict(input_images)
 
         for i, image in enumerate(colored_images):
