@@ -7,13 +7,12 @@ import keras
 import numpy as np
 from keras import backend as K
 from keras.callbacks import Callback
-from keras.models import load_model
 from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
 import generators
-from models.colorizer import Colorizer, VGGColorizer
+from models.colorizer import get_colorizer
 from models.critic import Critic
 from models.gan import CombinedGan
 from util.data import get_mapper
@@ -135,14 +134,9 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     data_mapper = get_mapper(color_space)
 
     ''' Prepare Models '''
-    if colorizer_model_path:    colorizer = load_model(filepath=colorizer_model_path, compile=False,
-                                                       custom_objects={'Colorizer': Colorizer,
-                                                                       'VGGColorizer': VGGColorizer})
-    elif vgg:                   colorizer = VGGColorizer(input_shape=(image_size, image_size, 1),
-                                                         feature_extractor_model_path=feature_extractor_model_path,
-                                                         train_feature_extractor=train_feature_extractor)
-    else:                       colorizer = Colorizer(input_shape=(image_size, image_size, 1))
-
+    colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
+                              train_feature_extractor=train_feature_extractor,
+                              colorizer_model_path=colorizer_model_path)
     critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9), loss=wasserstein_loss)
     combined = CombinedGan(generator=colorizer, critic=critic,

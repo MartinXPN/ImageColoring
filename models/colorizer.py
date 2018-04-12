@@ -3,6 +3,7 @@ from __future__ import division
 from keras import Input
 from keras.engine import Model
 from keras.layers import Conv2D, MaxPooling2D, Concatenate, UpSampling2D, PReLU
+from keras.models import load_model
 
 
 class Colorizer(Model):
@@ -77,3 +78,17 @@ class VGGColorizer(Colorizer):
                 l.trainable = self.train_feature_extractor
 
         return x, concat_layers[::-1]
+
+
+def get_colorizer(image_size=224, vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
+                  colorizer_model_path=None):
+    if colorizer_model_path:
+        return load_model(filepath=colorizer_model_path, compile=False,
+                          custom_objects={'Colorizer': Colorizer,
+                                          'VGGColorizer': VGGColorizer})
+    elif vgg:
+        return VGGColorizer(input_shape=(image_size, image_size, 1),
+                            feature_extractor_model_path=feature_extractor_model_path,
+                            train_feature_extractor=train_feature_extractor)
+    else:
+        return Colorizer(input_shape=(image_size, image_size, 1))

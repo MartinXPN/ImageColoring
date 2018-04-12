@@ -9,7 +9,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
 import generators
-from models.colorizer import Colorizer, VGGColorizer
+from models.colorizer import get_colorizer
 from util.data import get_mapper
 
 
@@ -61,10 +61,8 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
     data_mapper = get_mapper(color_space)
 
     ''' Prepare Models '''
-    if not vgg:     colorizer = Colorizer(input_shape=(image_size, image_size, 1))
-    else:           colorizer = VGGColorizer(input_shape=(image_size, image_size, 1),
-                                             feature_extractor_model_path=feature_extractor_model_path,
-                                             train_feature_extractor=train_feature_extractor)
+    colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
+                              train_feature_extractor=train_feature_extractor)
     colorizer.compile(optimizer=Adam(lr=3e-4), loss='mse')
 
     ''' View summary of the models '''
