@@ -10,16 +10,17 @@ from scipy.misc import imsave
 
 import generators
 from models.colorizer import Colorizer, VGGColorizer
-from util.data import rgb_to_colorizer_input, network_prediction_to_rgb
+from util.data import YUVMapper, LabMapper
 
 
 class Gym(object):
     def __init__(self,
-                 colorizer, data_generator,
+                 colorizer, data_generator, data_mapper,
                  logger, models_save_dir, colored_images_save_dir):
 
         self.colorizer = colorizer
         self.data_generator = data_generator
+        self.data_mapper = data_mapper
 
         self.model_save_dir = models_save_dir
         self.colored_images_save_dir = colored_images_save_dir
@@ -45,18 +46,24 @@ class Gym(object):
         input_images, target_images = self.data_generator.next()
         colored_images = self.colorizer.predict(input_images)
         for i, image in enumerate(colored_images):
-            rgb_prediction = network_prediction_to_rgb(colored_images[i], input_images[i])
+            rgb_prediction = self.data_mapper.network_prediction_to_rgb(colored_images[i], input_images[i])
             imsave(name=os.path.join(self.colored_images_save_dir, str(epoch) + '-' + str(i) + '.jpg'),
                    arr=rgb_prediction)
         self.colorizer.save(os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
         print('Done!')
 
 
-def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100,
+def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
+
+    ''' Prepare data mapping '''
+    color_space = color_space.lower()
+    if color_space == 'yuv':    data_mapper = YUVMapper()
+    elif color_space == 'lab':  data_mapper = LabMapper()
+    else:                       raise NotImplementedError('No implementation found for the specified color space')
 
     ''' Prepare Models '''
     if not vgg:     colorizer = Colorizer(input_shape=(image_size, image_size, 1))
@@ -69,7 +76,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100,
     print('\n\n\n\nColorizer:'),    colorizer.summary()
 
     ''' Prepare data generators '''
-    generator = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
+    generator = ImageDataGenerator(preprocessing_function=data_mapper.rgb_to_colorizer_input)
     train_generator = generators.ImageDataGenerator(directory=train_data_dir,
                                                     image_data_generator=generator,
                                                     target_size=(image_size, image_size),
@@ -80,6 +87,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100,
     logger = TensorBoard(log_dir=log_dir)
     gym = Gym(colorizer=colorizer,
               data_generator=train_generator,
+              data_mapper=data_mapper,
               logger=logger,
               models_save_dir=models_save_dir,
               colored_images_save_dir=colored_images_save_dir)

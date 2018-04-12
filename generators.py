@@ -6,7 +6,7 @@ import numpy as np
 from keras import backend as K
 from keras.preprocessing.image import load_img, DirectoryIterator, img_to_array, array_to_img
 
-from util.data import rgb_to_target_image
+from util.data import YUVMapper
 
 
 class ImageDataGenerator(DirectoryIterator):
@@ -24,6 +24,7 @@ class ImageDataGenerator(DirectoryIterator):
                                                  data_format=data_format,
                                                  save_to_dir=save_to_dir, save_prefix=save_prefix, save_format=save_format,
                                                  follow_links=follow_links)
+        self.data_mapper = YUVMapper()
         self.generator_thread = Thread(target=self.generate_batch)
         self.generator_thread.start()
         self.batch = None
@@ -79,7 +80,7 @@ class ImageDataGenerator(DirectoryIterator):
             for i, j in enumerate(index_array):
                 img = load_img(os.path.join(self.directory, self.filenames[j]), target_size=self.target_size)
                 batch_y[i] = img_to_array(img, data_format=self.data_format)
-                res[i] = rgb_to_target_image(batch_y[i])[:, :, 1:]  # Keep only ab space from whole Lab spectre
+                res[i] = self.data_mapper.rgb_to_colorizer_target(batch_y[i])
             batch_y = res
         elif self.class_mode:
             batch_y = self.classes[index_array]

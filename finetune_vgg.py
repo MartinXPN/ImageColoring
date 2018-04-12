@@ -11,14 +11,20 @@ from keras.layers import Conv2D
 from keras.models import Sequential
 from keras.preprocessing.image import ImageDataGenerator
 
-from util.data import rgb_to_colorizer_input
+from util.data import YUVMapper, LabMapper
 
 
-def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=1024, image_size=224,
+def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=1024, image_size=224, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          model_save_dir='finetune_models'):
     """ FineTune VGG16 to work on black and white images that are passed as inputs to colorizer """
-    
+
+    ''' Prepare data mapping '''
+    color_space = color_space.lower()
+    if color_space == 'yuv':    data_mapper = YUVMapper()
+    elif color_space == 'lab':  data_mapper = LabMapper()
+    else:                       raise NotImplementedError('No implementation found for the specified color space')
+
     ''' Modify VGG16 to work with greyscale images '''
     vgg = VGG16()
     for layer in vgg.layers:
@@ -38,7 +44,7 @@ def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=102
     model.summary()
 
     ''' Prepare data generators '''
-    generator = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
+    generator = ImageDataGenerator(preprocessing_function=data_mapper.rgb_to_colorizer_input)
     train_generator = generator.flow_from_directory(directory=train_data_dir,
                                                     target_size=(image_size, image_size),
                                                     batch_size=batch_size,

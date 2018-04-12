@@ -16,7 +16,7 @@ import generators
 from models.colorizer import Colorizer, VGGColorizer
 from models.critic import Critic
 from models.gan import CombinedGan
-from util.data import rgb_to_colorizer_input, rgb_to_target_image, network_prediction_to_rgb
+from util.data import YUVMapper, LabMapper
 
 
 def wasserstein_loss(target, output):
@@ -27,7 +27,7 @@ class Gym(object):
     def __init__(self,
                  generator, critic, combined,
                  generator_data_generator, real_data_generator, combined_data_generator,
-                 logger, models_save_dir, colored_images_save_dir):
+                 data_mapper, logger, models_save_dir, colored_images_save_dir):
 
         self.generator = generator
         self.critic = critic
@@ -37,6 +37,7 @@ class Gym(object):
         self.generator_data_generator = generator_data_generator
         self.real_data_generator = real_data_generator
         self.combined_data_generator = combined_data_generator
+        self.data_mapper = data_mapper
 
         self.model_save_dir = models_save_dir
         self.colored_images_save_dir = colored_images_save_dir
@@ -117,20 +118,26 @@ class Gym(object):
         greyscale_images = self.generator_data_generator.next()
         colored_images = self.generator.predict(greyscale_images)
         for i, image in enumerate(colored_images):
-            rgb_prediction = network_prediction_to_rgb(colored_images[i], greyscale_images[i])
+            rgb_prediction = self.data_mapper.network_prediction_to_rgb(colored_images[i], greyscale_images[i])
             imsave(name=os.path.join(self.colored_images_save_dir, str(epoch) + '-' + str(i) + '.jpg'),
                    arr=rgb_prediction)
         self.generator.save(os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
         print('Done!')
 
 
-def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_threshold=-0.1,
+def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_threshold=-0.1, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
          colorizer_model_path=None,
          include_target_image=False):
     """ Train Wasserstein gan to colorize black and white images """
+
+    ''' Prepare data mapping '''
+    color_space = color_space.lower()
+    if color_space == 'yuv':    data_mapper = YUVMapper()
+    elif color_space == 'lab':  data_mapper = LabMapper()
+    else:                       raise NotImplementedError('No implementation found for the specified color space')
 
     ''' Prepare Models '''
     if colorizer_model_path:    colorizer = load_model(filepath=colorizer_model_path, compile=False,
@@ -155,9 +162,9 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     print('\n\n\n\nCombined:'),     combined.summary()
 
     ''' Prepare data generators '''
-    greyscale_generator = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
-    real_data_generator = ImageDataGenerator(preprocessing_function=rgb_to_target_image)
-    combined_generator  = ImageDataGenerator(preprocessing_function=rgb_to_colorizer_input)
+    greyscale_generator = ImageDataGenerator(preprocessing_function=data_mapper.rgb_to_colorizer_input)
+    real_data_generator = ImageDataGenerator(preprocessing_function=data_mapper.rgb_to_target_image)
+    combined_generator  = ImageDataGenerator(preprocessing_function=data_mapper.rgb_to_colorizer_input)
     greyscale_generator = generators.ImageDataGenerator(directory=train_data_dir,
                                                         image_data_generator=greyscale_generator,
                                                         target_size=(image_size, image_size),
@@ -180,6 +187,7 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
               generator_data_generator=greyscale_generator,
               real_data_generator=real_data_generator,
               combined_data_generator=combined_generator,
+              data_mapper=data_mapper,
               logger=logger,
               models_save_dir=models_save_dir,
               colored_images_save_dir=colored_images_save_dir)
