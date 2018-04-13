@@ -38,6 +38,7 @@ class Colorizer(Model):
                 x = Conv2D(filters, kernel_size=3, activation=None, padding='same')(x)
                 x = PReLU()(x)
             # x = SubpixelUpSampling(filters=filters, kernel_size=3, ratio=2, padding='same')(x)
+            # x = Conv2DTranspose(filters=filters, kernel_size=3)(x)
             x = UpSampling2D(size=2)(x)
             x = Concatenate()([concat_layer, x])
         return x
@@ -80,15 +81,15 @@ class VGGColorizer(Colorizer):
         return x, concat_layers[::-1]
 
 
-class VGGClassificationClassifier(VGGColorizer):
+class VGGClassificationColorizer(VGGColorizer):
     def __init__(self, input_shape=(None, None, 1), classes_per_pixel=100,
                  feature_extractor_model_path=None, train_feature_extractor=False,
                  inputs=None, outputs=None, name='Colorizer'):
         self.classes_per_pixel = classes_per_pixel
-        super(VGGClassificationClassifier, self).__init__(input_shape=input_shape,
-                                                          feature_extractor_model_path=feature_extractor_model_path,
-                                                          train_feature_extractor=train_feature_extractor,
-                                                          inputs=inputs, outputs=outputs, name=name)
+        super(VGGClassificationColorizer, self).__init__(input_shape=input_shape,
+                                                         feature_extractor_model_path=feature_extractor_model_path,
+                                                         train_feature_extractor=train_feature_extractor,
+                                                         inputs=inputs, outputs=outputs, name=name)
 
     def construct_post_process_trunk(self, x):
         concat = x
@@ -111,7 +112,7 @@ def get_colorizer(image_size=224, vgg=False, feature_extractor_model_path=None, 
         return load_model(filepath=colorizer_model_path, compile=False,
                           custom_objects={'Colorizer': Colorizer,
                                           'VGGColorizer': VGGColorizer,
-                                          'VGGClassificationClassifier': VGGClassificationClassifier})
+                                          'VGGClassificationClassifier': VGGClassificationColorizer})
     elif vgg:
         return VGGColorizer(input_shape=(image_size, image_size, 1),
                             feature_extractor_model_path=feature_extractor_model_path,
