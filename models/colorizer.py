@@ -93,26 +93,31 @@ class VGGClassificationColorizer(VGGColorizer):
 
     def construct_post_process_trunk(self, x):
         concat = x
-        for filters in [32, 64, 64]:
+        for filters in [64, 64, 32]:
             x = Conv2D(filters, kernel_size=3, activation=None, padding='same')(concat)
             x = PReLU()(x)
             concat = Concatenate()([concat, x])
 
         x = concat
-        x = Conv2D(filters=128, kernel_size=3, activation=None, padding='same')(x)
+        x = Conv2D(filters=32, kernel_size=3, activation=None, padding='same')(x)
         x = LeakyReLU()(x)
         x = Conv2D(filters=self.classes_per_pixel, kernel_size=3, activation=None, padding='same')(x)
         x = Softmax(axis=-1)(x)
         return x
 
 
-def get_colorizer(image_size=224, vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
-                  colorizer_model_path=None):
+def get_colorizer(colorizer_model_path=None,
+                  image_size=224, vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
+                  classifier=False, classes_per_pixel=300):
     if colorizer_model_path:
         return load_model(filepath=colorizer_model_path, compile=False,
                           custom_objects={'Colorizer': Colorizer,
                                           'VGGColorizer': VGGColorizer,
                                           'VGGClassificationClassifier': VGGClassificationColorizer})
+    elif classifier and vgg:
+        return VGGClassificationColorizer(input_shape=(image_size, image_size, 1), classes_per_pixel=classes_per_pixel,
+                                          feature_extractor_model_path=feature_extractor_model_path,
+                                          train_feature_extractor=train_feature_extractor)
     elif vgg:
         return VGGColorizer(input_shape=(image_size, image_size, 1),
                             feature_extractor_model_path=feature_extractor_model_path,

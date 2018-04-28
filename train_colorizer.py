@@ -9,7 +9,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
 from models.colorizer import get_colorizer
-from util.data import get_mapper
+from util.data import get_mapper, ColorMappingInitializer
 
 
 class Gym(object):
@@ -59,17 +59,8 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
+         classifier=False, vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
-    data_mapper = get_mapper(color_space)
-
-    ''' Prepare Models '''
-    colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
-                              train_feature_extractor=train_feature_extractor)
-    colorizer.compile(optimizer=Adam(lr=3e-4), loss='mse')
-
-    ''' View summary of the models '''
-    print('\n\n\n\nColorizer:'),    colorizer.summary()
 
     ''' Prepare data generators '''
     train_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
@@ -77,6 +68,26 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
                                                                batch_size=batch_size,
                                                                color_mode='rgb',
                                                                class_mode=None)
+
+    data_mapper = get_mapper(color_space, classifier)
+    mapping = ColorMappingInitializer(data_mapper, image_generator=train_generator, image_size=image_size)
+    mapping.populate(num_batches=100)
+    data_mapper = get_mapper(color_space=color_space, classifier=classifier,
+                             color_to_class=mapping.color_to_class, class_to_color=mapping.class_to_color)
+
+    rgb_images = next(train_generator)
+    input_images, target_images = data_mapper.map(rgb_images, [data_mapper.rgb_to_colorizer_input,
+                                                               data_mapper.rgb_to_colorizer_target])
+    print(target_images.shape)
+
+    ''' Prepare Models '''
+    colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
+                              train_feature_extractor=train_feature_extractor,
+                              classifier=classifier, classes_per_pixel=mapping.nb_classes())
+    colorizer.compile(optimizer=Adam(lr=3e-4), loss='sparse_categorical_crossentropy' if classifier else 'mse')
+
+    ''' View summary of the models '''
+    print('\n\n\n\nColorizer:'),    colorizer.summary()
 
     logger = TensorBoard(log_dir=log_dir)
     gym = Gym(colorizer=colorizer,
