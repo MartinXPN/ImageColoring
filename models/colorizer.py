@@ -2,7 +2,7 @@ from __future__ import division
 
 from keras import Input
 from keras.engine import Model
-from keras.layers import Conv2D, MaxPooling2D, Concatenate, UpSampling2D, PReLU, LeakyReLU, Softmax
+from keras.layers import Conv2D, MaxPooling2D, Concatenate, UpSampling2D, PReLU, Softmax
 from keras.models import load_model
 
 
@@ -96,11 +96,10 @@ class VGGClassificationColorizer(VGGColorizer):
         for filters in [64, 64, 32]:
             x = Conv2D(filters, kernel_size=3, activation=None, padding='same')(concat)
             x = PReLU()(x)
-            concat = Concatenate()([concat, x])
+            concat = x  # Concatenate()([concat, x])
 
         x = concat
-        x = Conv2D(filters=32, kernel_size=3, activation=None, padding='same')(x)
-        x = PReLU()(x)
+        x = Conv2D(filters=32, kernel_size=3, activation='tanh', padding='same')(x)
         x = Conv2D(filters=self.classes_per_pixel, kernel_size=3, activation=None, padding='same')(x)
         x = Softmax(axis=-1)(x)
         return x
