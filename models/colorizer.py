@@ -100,7 +100,7 @@ class VGGClassificationColorizer(VGGColorizer):
 
         x = concat
         x = Conv2D(filters=32, kernel_size=3, activation=None, padding='same')(x)
-        x = LeakyReLU()(x)
+        x = PReLU()(x)
         x = Conv2D(filters=self.classes_per_pixel, kernel_size=3, activation=None, padding='same')(x)
         x = Softmax(axis=-1)(x)
         return x

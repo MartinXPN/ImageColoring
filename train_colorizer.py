@@ -71,7 +71,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
 
     data_mapper = get_mapper(color_space, classifier)
     mapping = ColorMappingInitializer(data_mapper, image_generator=train_generator, image_size=image_size)
-    mapping.populate(num_batches=100)
+    mapping.populate(num_batches=1000)
     data_mapper = get_mapper(color_space=color_space, classifier=classifier,
                              color_to_class=mapping.color_to_class, class_to_color=mapping.class_to_color)
 
