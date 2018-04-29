@@ -93,13 +93,12 @@ class VGGClassificationColorizer(VGGColorizer):
 
     def construct_post_process_trunk(self, x):
         concat = x
-        for filters in [64, 64, 32]:
+        for filters in [64, 64]:
             x = Conv2D(filters, kernel_size=3, activation=None, padding='same')(concat)
             x = PReLU()(x)
             concat = x  # Concatenate()([concat, x])
 
         x = concat
-        x = Conv2D(filters=32, kernel_size=3, activation='tanh', padding='same')(x)
         x = Conv2D(filters=self.classes_per_pixel, kernel_size=3, activation=None, padding='same')(x)
         x = Softmax(axis=-1)(x)
         return x

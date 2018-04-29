@@ -74,11 +74,12 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
     nb_color_classes = 0
     if classifier:
         data_mapper = get_mapper(color_space, classifier)
-        mapping = ColorMappingInitializer(data_mapper, image_generator=train_generator, image_size=image_size)
-        mapping.populate(num_batches=populate_batches)
+        mapping = ColorMappingInitializer()
+        mapping.initialize()
         nb_color_classes = mapping.nb_classes()
         data_mapper = get_mapper(color_space=color_space, classifier=classifier,
-                                 color_to_class=mapping.color_to_class, class_to_color=mapping.class_to_color)
+                                 color_to_class=mapping.color_to_class, class_to_color=mapping.class_to_color,
+                                 factor=mapping.scale_factor)
     else:
         data_mapper = get_mapper(color_space=color_space, classifier=classifier)
 
