@@ -61,7 +61,7 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         classifier=False, populate_batches=1000,
+         classifier=False, populate_batches=1000, scale_factor=0.9,
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
 
@@ -73,8 +73,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
                                                                class_mode=None)
     nb_color_classes = 0
     if classifier:
-        data_mapper = get_mapper(color_space, classifier)
-        mapping = ColorMappingInitializer()
+        mapping = ColorMappingInitializer(scale_factor=scale_factor)
         mapping.initialize()
         nb_color_classes = mapping.nb_classes()
         data_mapper = get_mapper(color_space=color_space, classifier=classifier,
