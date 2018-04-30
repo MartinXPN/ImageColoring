@@ -73,11 +73,11 @@ class ColorFrequencyCalculator(object):
             for rgb_image in next(self.image_generator):
                 self.populate_classes(rgb_image)
 
-    def get_class_weights(self):
+    def get_class_weights(self, weight_range=(0.5, 1.5)):
         print('Calculating class weights...')
         for r in range(self.pixel_class_count.shape[0]):
             for c in range(self.pixel_class_count.shape[1]):
                 m = interp1d(x=[-self.pixel_class_count[r][c].max(), -self.pixel_class_count[r][c].min()],
-                             y=[0.5, 1.5])
+                             y=weight_range)
                 self.pixel_class_count[r][c] = m(-self.pixel_class_count[r][c])
         return self.pixel_class_count
