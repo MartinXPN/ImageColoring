@@ -11,7 +11,7 @@ from keras.layers import Conv2D
 from keras.models import Sequential
 from keras.preprocessing.image import ImageDataGenerator
 
-from util.data import get_mapper
+from util.colorspace.mapping import get_mapper
 
 
 def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=1024, image_size=224, color_space='yuv',

@@ -14,7 +14,7 @@ from scipy.misc import imsave
 from models.colorizer import get_colorizer
 from models.critic import Critic
 from models.gan import CombinedGan
-from util.data import get_mapper
+from util.colorspace.mapping import get_mapper
 
 
 def wasserstein_loss(target, output):

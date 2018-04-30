@@ -11,7 +11,8 @@ from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
 from models.colorizer import get_colorizer
-from util.data import get_mapper, ColorMappingInitializer
+from util.colorspace.mapping import get_mapper
+from util.colorspace.colorspaceclasses import ColorMappingInitializer
 
 
 class Gym(object):
@@ -61,7 +62,7 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         classifier=False, populate_batches=1000, scale_factor=0.9,
+         classifier=False, populate_batches=1000, scale_factor=9.,
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
 

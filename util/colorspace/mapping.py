@@ -1,11 +1,7 @@
 from __future__ import print_function
 
-import math
-import itertools
-
 import numpy as np
 from skimage.color import yuv2rgb, rgb2yuv, lab2rgb, rgb2lab
-from tqdm import tqdm
 
 
 class DataMapper(object):
@@ -124,93 +120,6 @@ class LabClassifierMapper(DataMapper):
         res = lab[:, :, :1]
         res /= 100.
         return res
-
-
-class ColorMappingInitializer(object):
-    def __init__(self, scale_factor=9.):
-        self.color_to_class = {}
-        self.class_to_color = []
-        self.scale_factor = scale_factor
-
-    def initialize(self):
-        print('Initializing color space mappings...')
-        self.class_to_color = []
-        all_colors = self.generate_all_colors()
-        for color in tqdm(all_colors):
-            scaled_color = self.scale_color(color)
-            if scaled_color not in self.color_to_class:
-                self.color_to_class[scaled_color] = len(self.class_to_color)
-                self.class_to_color.append(scaled_color)
-
-        self.class_to_color = np.array(self.class_to_color)
-        print(self.class_to_color.shape)
-
-    def scale_color(self, color):
-        return tuple([int(round(c / self.scale_factor)) for c in color])
-
-    @staticmethod
-    def generate_rgb_image_with_all_possible_values():
-        all_colors = np.array(list(itertools.product(range(256), repeat=3)))
-        image_edge = int(math.sqrt(all_colors.shape[0]))
-        all_colors = all_colors.reshape((image_edge, image_edge, 3))
-        return all_colors / 255.
-
-    def generate_all_colors(self):
-        all_lab = rgb2lab(self.generate_rgb_image_with_all_possible_values())
-        ab_pairs = all_lab[:, :, 1:].reshape((all_lab.shape[0] * all_lab.shape[1], 2))
-        print('All Colors shape:', all_lab.shape)
-        print('Color pairs shape:', ab_pairs.shape)
-        return ab_pairs
-
-    def nb_classes(self):
-        return len(self.class_to_color)
-
-
-class ColorFrequencyCalculator(object):
-    def __init__(self, color_to_class, class_to_color, data_mapper, image_generator, image_size):
-        self.color_to_class = color_to_class
-        self.class_to_color = class_to_color
-        self.data_mapper = data_mapper
-        self.image_generator = image_generator
-        self.class_count = []
-        self.image_size = image_size
-
-        # self.pixel_class_count = {}
-        # for i in range(image_size):
-        #     self.pixel_class_count[i] = {}
-        #     for j in range(image_size):
-        #         self.pixel_class_count[i][j] = {}
-
-    def populate_classes(self, rgb_image):
-        target = self.data_mapper.rgb_to_target_pairs(rgb_image)
-        for r in range(target.shape[0]):
-            for c in range(target.shape[1]):
-                color = tuple(target[r][c])
-                if color not in self.color_to_class:
-                    self.color_to_class[color] = len(self.class_to_color)
-                    self.class_to_color.append(color)
-                    self.class_count.append(0)
-                color_class = self.color_to_class[color]
-                self.class_count[color_class] += 1
-                # if color_class not in self.pixel_class_count[r][c]:    self.pixel_class_count[r][c][color_class] = 1
-                # else:                                                  self.pixel_class_count[r][c][color_class] += 1
-
-    def populate(self, num_batches):
-        print('Getting frequencies for every color-class from images...')
-        for _ in tqdm(range(num_batches)):
-            for rgb_image in next(self.image_generator):
-                self.populate_classes(rgb_image)
-
-    def get_class_weights(self):
-        # shape = (self.image_size, self.image_size, len(self.class_to_color))
-        # class_weights = np.zeros(shape=shape)
-        # for row in range(shape[0]):
-        #     for col in range(shape[1]):
-        #         for clas in range(len(self.class_to_color)):
-        #             if clas in self.pixel_class_count[row][col]:
-        #                 class_weights[row][col][clas] = self.pixel_class_count[row][col][clas]
-        counts = np.array(self.class_count)
-        return np.broadcast_to(counts, shape=(self.image_size, self.image_size, len(counts)))
 
 
 def get_mapper(color_space, classifier, color_to_class=None, class_to_color=None, factor=9.):
