@@ -64,7 +64,7 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         classifier=False, populate_batches=10, scale_factor=9.,
+         classifier=False, populate_batches=1000, scale_factor=9.,
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
 
@@ -95,7 +95,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
     colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
                               train_feature_extractor=train_feature_extractor,
                               classifier=classifier,
-                              classes_per_pixel=class_weights.shape[-1] if class_weights else 0)
+                              classes_per_pixel=class_weights.shape[-1] if classifier else 0)
     colorizer.compile(optimizer=Adam(lr=3e-4), loss='sparse_categorical_crossentropy' if classifier else 'mse')
 
     ''' View summary of the models '''
