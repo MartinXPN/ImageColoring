@@ -12,13 +12,14 @@ from scipy.misc import imsave
 
 from models.colorizer import get_colorizer
 from util.colorspace.mapping import get_mapper
-from util.colorspace.colorspaceclasses import ColorMappingInitializer
+from util.colorspace.colorspaceclasses import ColorMappingInitializer, ColorFrequencyCalculator
 
 
 class Gym(object):
     def __init__(self,
                  colorizer, data_generator, data_mapper,
-                 logger, models_save_dir, colored_images_save_dir):
+                 logger, models_save_dir, colored_images_save_dir,
+                 class_weights=None):
 
         self.colorizer = colorizer
         self.data_generator = data_generator
@@ -31,6 +32,7 @@ class Gym(object):
 
         self.logger = logger
         self.logger.set_model(self.colorizer)
+        self.class_weights = class_weights
 
     def train(self, epochs=100000, steps_per_epoch=500):
         batches = 0
@@ -41,7 +43,7 @@ class Gym(object):
                 rgb_images = next(self.data_generator)
                 input_images, target_images = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_colorizer_input,
                                                                                 self.data_mapper.rgb_to_colorizer_target])
-                loss = self.colorizer.train_on_batch(x=input_images, y=target_images)
+                loss = self.colorizer.train_on_batch(x=input_images, y=target_images, class_weight=self.class_weights)
                 print('epoch: {}, step: {}, Loss: {}'.format(epoch, step, loss))
                 self.logger.on_epoch_end(epoch=batches, logs={'train loss': loss})
 
@@ -62,7 +64,7 @@ class Gym(object):
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, color_space='yuv',
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
-         classifier=False, populate_batches=1000, scale_factor=9.,
+         classifier=False, populate_batches=10, scale_factor=9.,
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
 
@@ -72,14 +74,20 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
                                                                batch_size=batch_size,
                                                                color_mode='rgb',
                                                                class_mode=None)
-    nb_color_classes = 0
+    class_weights = None
     if classifier:
         mapping = ColorMappingInitializer(scale_factor=scale_factor)
         mapping.initialize()
-        nb_color_classes = mapping.nb_classes()
         data_mapper = get_mapper(color_space=color_space, classifier=classifier,
                                  color_to_class=mapping.color_to_class, class_to_color=mapping.class_to_color,
                                  factor=mapping.scale_factor)
+        class_weight_calculator = ColorFrequencyCalculator(color_to_class=mapping.color_to_class,
+                                                           class_to_color=mapping.class_to_color,
+                                                           rgb_image_to_classes=data_mapper.rgb_to_colorizer_target,
+                                                           image_generator=train_generator,
+                                                           image_size=image_size)
+        class_weight_calculator.populate(num_batches=populate_batches)
+        class_weights = class_weight_calculator.get_class_weights()
     else:
         data_mapper = get_mapper(color_space=color_space, classifier=classifier)
 
@@ -87,7 +95,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
     colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
                               train_feature_extractor=train_feature_extractor,
                               classifier=classifier,
-                              classes_per_pixel=nb_color_classes)
+                              classes_per_pixel=class_weights.shape[-1] if class_weights else 0)
     colorizer.compile(optimizer=Adam(lr=3e-4), loss='sparse_categorical_crossentropy' if classifier else 'mse')
 
     ''' View summary of the models '''
@@ -99,7 +107,8 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
               data_mapper=data_mapper,
               logger=logger,
               models_save_dir=models_save_dir,
-              colored_images_save_dir=colored_images_save_dir)
+              colored_images_save_dir=colored_images_save_dir,
+              class_weights=class_weights)
     gym.train(epochs=epochs, steps_per_epoch=steps_per_epoch)
 
 

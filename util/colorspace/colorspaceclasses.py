@@ -60,11 +60,10 @@ class ColorFrequencyCalculator(object):
         self.class_count = np.zeros(shape=(len(self.class_to_color),))
 
     def populate_classes(self, rgb_image):
-        target = self.rgb_image_to_classes(rgb_image)
-        for r in range(target.shape[0]):
-            for c in range(target.shape[1]):
-                color = tuple(target[r][c])
-                color_class = self.color_to_class[color]
+        image_classes = self.rgb_image_to_classes(rgb_image)
+        for r in range(image_classes.shape[0]):
+            for c in range(image_classes.shape[1]):
+                color_class = image_classes[r][c]
                 self.class_count[color_class] += 1
                 self.pixel_class_count[r][c][color_class] += 1
 
@@ -75,10 +74,10 @@ class ColorFrequencyCalculator(object):
                 self.populate_classes(rgb_image)
 
     def get_class_weights(self):
+        print('Calculating class weights...')
         for r in range(self.pixel_class_count.shape[0]):
             for c in range(self.pixel_class_count.shape[1]):
-                m = interp1d(x=[self.pixel_class_count[r][c].min(), self.pixel_class_count[r][c].max()],
+                m = interp1d(x=[-self.pixel_class_count[r][c].max(), -self.pixel_class_count[r][c].min()],
                              y=[0.5, 1.5])
-                for i in range(self.pixel_class_count.shape[2]):
-                    self.pixel_class_count[r][c][i] = m(self.pixel_class_count[r][c][i])
+                self.pixel_class_count[r][c] = m(-self.pixel_class_count[r][c])
         return self.pixel_class_count
