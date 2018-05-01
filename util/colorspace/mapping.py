@@ -79,7 +79,7 @@ class LabMapper(DataMapper):
         return res
 
 
-class LabClassifierMapper(DataMapper):
+class LabClassifierMapper(LabMapper):
     def __init__(self, color_to_class, class_to_color, factor=9.):
         self.factor = factor
         self.color_to_class = color_to_class
@@ -97,12 +97,6 @@ class LabClassifierMapper(DataMapper):
         ab = np.array([[self.class_to_color[clas] for clas in row] for row in prediction])
         return self.target_to_rgb(inputs, ab)
 
-    def rgb_to_target_image(self, rgb_image):
-        lab = rgb2lab(rgb_image.copy() / 255.)
-        lab[:, :, :1] /= 100.
-        lab[:, :, 1:] /= 128.
-        return lab
-
     def rgb_to_target_pairs(self, rgb_image):
         lab = rgb2lab(rgb_image.copy() / 255.)
         ab = lab[:, :, 1:]
@@ -114,12 +108,6 @@ class LabClassifierMapper(DataMapper):
         ab = self.rgb_to_target_pairs(rgb_image)
         res = np.array([[self.color_to_class[tuple(color)] for color in row] for row in ab])
         return np.expand_dims(res, axis=3)
-
-    def rgb_to_colorizer_input(self, rgb_image):
-        lab = rgb2lab(rgb_image.copy() / 255.)
-        res = lab[:, :, :1]
-        res /= 100.
-        return res
 
 
 def get_mapper(color_space, classifier, color_to_class=None, class_to_color=None, factor=9.):

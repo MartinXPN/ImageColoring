@@ -9,6 +9,7 @@ from keras.callbacks import EarlyStopping, ModelCheckpoint
 from keras.engine import InputLayer
 from keras.layers import Conv2D
 from keras.models import Sequential
+from keras.optimizers import Adam
 from keras.preprocessing.image import ImageDataGenerator
 
 from util.colorspace.mapping import get_mapper
@@ -18,7 +19,7 @@ def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=102
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          model_save_dir='finetune_models'):
     """ FineTune VGG16 to work on black and white images that are passed as inputs to colorizer """
-    data_mapper = get_mapper(color_space)
+    data_mapper = get_mapper(color_space, classifier=False)
 
     ''' Modify VGG16 to work with greyscale images '''
     vgg = VGG16()
@@ -35,7 +36,7 @@ def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=102
     model.add(Conv2D(filters=64, kernel_size=3, padding='same'))
     for layer in needed_layers:
         model.add(layer)
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(lr=3e-4), loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
 
     ''' Prepare data generators '''
