@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 
+import PIL.Image
 import fire
 from keras.applications import VGG16
 from keras.callbacks import EarlyStopping, ModelCheckpoint
@@ -10,7 +11,7 @@ from keras.engine import InputLayer
 from keras.layers import Conv2D
 from keras.models import Sequential
 from keras.optimizers import Adam
-from keras.preprocessing.image import ImageDataGenerator
+from keras.preprocessing.image import ImageDataGenerator, img_to_array
 
 from util.colorspace.mapping import get_mapper
 
@@ -19,7 +20,7 @@ def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=102
          train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
          model_save_dir='finetune_models'):
     """ FineTune VGG16 to work on black and white images that are passed as inputs to colorizer """
-    data_mapper = get_mapper(color_space, classifier=False)
+    data_mapper = get_mapper(color_space=color_space, classifier=False)
 
     ''' Modify VGG16 to work with greyscale images '''
     vgg = VGG16()
@@ -40,19 +41,24 @@ def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=102
     model.summary()
 
     ''' Prepare data generators '''
-    generator = ImageDataGenerator(preprocessing_function=data_mapper.rgb_to_colorizer_input)
+    def preprocess(image):
+        image = image.resize((image_size, image_size), PIL.Image.NEAREST)
+        image = img_to_array(image)
+        return data_mapper.rgb_to_colorizer_input(image)
+
+    generator = ImageDataGenerator(preprocessing_function=preprocess)
     train_generator = generator.flow_from_directory(directory=train_data_dir,
-                                                    target_size=(image_size, image_size),
                                                     batch_size=batch_size,
                                                     color_mode='rgb',
                                                     class_mode='categorical')
     valid_generator = generator.flow_from_directory(directory=valid_data_dir,
-                                                    target_size=(image_size, image_size),
                                                     batch_size=batch_size,
                                                     color_mode='rgb',
                                                     class_mode='categorical')
-    train_generator.image_shape = train_generator.target_size + (1,)
-    valid_generator.image_shape = valid_generator.target_size + (1,)
+    train_generator.image_shape = (image_size, image_size, 1)
+    valid_generator.image_shape = (image_size, image_size, 1)
+    train_generator.target_size = None
+    valid_generator.target_size = None
 
     # Configure model checkpoints
     model_save_dir = model_save_dir
@@ -61,7 +67,7 @@ def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=102
         os.mkdir(model_save_dir)
 
     ''' FineTune VGG '''
-    model.fit_generator(train_generator,
+    model.fit_generator(generator=train_generator,
                         steps_per_epoch=images_per_epoch // batch_size,
                         epochs=epochs,
                         validation_data=valid_generator,
