@@ -79,8 +79,7 @@ class ColorFrequencyCalculator(object):
             for c in range(self.pixel_class_count.shape[1]):
                 p = self.pixel_class_count[r][c] / self.pixel_class_count[r][c].sum()   # Probability of the color class
                 data_prob = (1. - balance_factor) * p                                   # obtained from the data
-                class_prob = balance_factor / len(self.class_to_color)  # Probability of the class if the colors were
-                                                                        # distributed uniformly
+                class_prob = balance_factor / len(self.class_to_color)  # Class probability in uniform distribution
 
                 weights[r][c] = 1. / (data_prob + class_prob)
         return weights

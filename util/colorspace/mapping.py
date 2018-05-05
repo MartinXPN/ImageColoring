@@ -79,7 +79,7 @@ class LabMapper(DataMapper):
         return res
 
 
-class LabClassifierMapper(LabMapper):
+class LabClassMapper(LabMapper):
     def __init__(self, color_to_class, class_to_color, factor=9.):
         self.factor = factor
         self.color_to_class = color_to_class
@@ -113,9 +113,9 @@ class LabClassifierMapper(LabMapper):
 def get_mapper(color_space, classifier, color_to_class=None, class_to_color=None, factor=9.):
     color_space = color_space.lower()
     if classifier:
-        if color_space == 'lab':        return LabClassifierMapper(color_to_class=color_to_class,
-                                                                   class_to_color=class_to_color,
-                                                                   factor=factor)
+        if color_space == 'lab':        return LabClassMapper(color_to_class=color_to_class,
+                                                              class_to_color=class_to_color,
+                                                              factor=factor)
     else:
         if color_space == 'yuv':        return YUVMapper()
         elif color_space == 'lab':      return LabMapper()
