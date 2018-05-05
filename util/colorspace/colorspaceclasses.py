@@ -3,7 +3,6 @@ import itertools
 import numpy as np
 
 from tqdm import tqdm
-from scipy.interpolate import interp1d
 from skimage.color import rgb2lab
 
 
@@ -73,11 +72,15 @@ class ColorFrequencyCalculator(object):
             for rgb_image in next(self.image_generator):
                 self.populate_classes(rgb_image)
 
-    def get_class_weights(self, weight_range=(0.5, 1.5)):
+    def get_class_weights(self, balance_factor=0.5):
         print('Calculating class weights...')
+        weights = np.zeros(shape=self.pixel_class_count.shape)
         for r in range(self.pixel_class_count.shape[0]):
             for c in range(self.pixel_class_count.shape[1]):
-                m = interp1d(x=[-self.pixel_class_count[r][c].max(), -self.pixel_class_count[r][c].min()],
-                             y=weight_range)
-                self.pixel_class_count[r][c] = m(-self.pixel_class_count[r][c])
-        return self.pixel_class_count
+                p = self.pixel_class_count[r][c] / self.pixel_class_count[r][c].sum()   # Probability of the color class
+                data_prob = (1. - balance_factor) * p                                   # obtained from the data
+                class_prob = balance_factor / len(self.class_to_color)  # Probability of the class if the colors were
+                                                                        # distributed uniformly
+
+                weights[r][c] = 1. / (data_prob + class_prob)
+        return weights
