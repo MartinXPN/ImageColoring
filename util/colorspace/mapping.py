@@ -84,6 +84,7 @@ class LabClassMapper(LabMapper):
         self.factor = factor
         self.color_to_class = color_to_class
         self.class_to_color = class_to_color
+        self.nb_classes = len(class_to_color)
 
     def target_to_rgb(self, l, ab):
         ab = ab.astype(np.float32)
@@ -104,10 +105,27 @@ class LabClassMapper(LabMapper):
         res = np.round(ab)
         return res.astype(np.int32)
 
+    def rgb_to_classes(self, rgb_image):
+        ab = self.rgb_to_target_pairs(rgb_image)
+        return np.array([[self.color_to_class[tuple(color)] for color in row] for row in ab])
+
     def rgb_to_colorizer_target(self, rgb_image):
         ab = self.rgb_to_target_pairs(rgb_image)
-        res = np.array([[self.color_to_class[tuple(color)] for color in row] for row in ab])
-        return np.expand_dims(res, axis=3)
+        target_classes = np.array([[self.color_to_class[tuple(color)] for color in row] for row in ab])
+        res = np.zeros(shape=target_classes.shape + (self.nb_classes,))
+        for r in range(res.shape[0]):
+            for c in range(res.shape[1]):
+                target_color = ab[r][c]
+                for i in range(-1, 1):
+                    for j in range(-1, 1):
+                        neighbour_color = (target_color[0] + i, target_color[1] + j)
+                        if neighbour_color not in self.color_to_class:
+                            continue
+                        neighbour_class = self.color_to_class[neighbour_color]
+                        if abs(i * j) == 1:     res[r][c][neighbour_class] = 0.1
+                        elif i == 0 and j == 0: res[r][c][neighbour_class] = 0.3
+                        else:                   res[r][c][neighbour_class] = 0.08
+        return res
 
 
 def get_mapper(color_space, classifier, color_to_class=None, class_to_color=None, factor=9.):

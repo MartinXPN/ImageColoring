@@ -83,7 +83,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
                                  factor=mapping.scale_factor)
         class_weight_calculator = ColorFrequencyCalculator(color_to_class=mapping.color_to_class,
                                                            class_to_color=mapping.class_to_color,
-                                                           rgb_image_to_classes=data_mapper.rgb_to_colorizer_target,
+                                                           rgb_image_to_classes=data_mapper.rgb_to_classes,
                                                            image_generator=train_generator,
                                                            image_size=image_size)
         class_weight_calculator.populate(num_batches=populate_batches)
@@ -96,7 +96,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
                               train_feature_extractor=train_feature_extractor,
                               classifier=classifier,
                               classes_per_pixel=class_weights.shape[-1] if classifier else 0)
-    colorizer.compile(optimizer=Adam(lr=3e-4), loss='sparse_categorical_crossentropy' if classifier else 'mse')
+    colorizer.compile(optimizer=Adam(lr=3e-4), loss='categorical_crossentropy' if classifier else 'mse')
 
     ''' View summary of the models '''
     print('\n\n\n\nColorizer:'),    colorizer.summary()
