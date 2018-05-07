@@ -37,7 +37,7 @@ def main(batch_size=64, epochs=300, images_per_epoch=5000, validation_images=102
     model.add(Conv2D(filters=64, kernel_size=3, padding='same'))
     for layer in needed_layers:
         model.add(layer)
-    model.compile(optimizer=Adam(lr=3e-4), loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer=Adam(), loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
 
     ''' Prepare data generators '''

@@ -26,7 +26,7 @@ class ColorMappingInitializer(object):
         print(self.class_to_color.shape)
 
     def scale_color(self, color):
-        return tuple([int(round(c / self.scale_factor)) for c in color])
+        return tuple([int(self.scale_factor * round(c / self.scale_factor)) for c in color])
 
     @staticmethod
     def generate_rgb_image_with_all_possible_values():

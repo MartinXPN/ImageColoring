@@ -1,10 +1,10 @@
 from __future__ import print_function
 
 import os
-
 import fire
 import keras
 import numpy as np
+
 from keras import backend as K
 from keras.callbacks import Callback
 from keras.optimizers import Adam
@@ -25,7 +25,8 @@ class Gym(object):
     def __init__(self,
                  generator, critic, combined,
                  image_generator, data_mapper, logger,
-                 models_save_dir, colored_images_save_dir):
+                 models_save_dir, colored_images_save_dir,
+                 classifier=False):
 
         self.generator = generator
         self.critic = critic
@@ -34,6 +35,8 @@ class Gym(object):
         ''' Data '''
         self.image_generator = image_generator
         self.data_mapper = data_mapper
+        self.class_to_color = data_mapper.class_to_color
+        self.classifier = classifier
 
         self.model_save_dir = models_save_dir
         self.colored_images_save_dir = colored_images_save_dir
@@ -64,6 +67,7 @@ class Gym(object):
             rgb_images = next(self.image_generator)
             gray = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_colorizer_input)
             colors = self.generator.predict(gray)
+            colors = np.dot(colors, self.class_to_color) if self.classifier else colors  # map classes to colors
             fake_images = np.concatenate((gray, colors), axis=3)
             fake_labels = np.ones(shape=len(colors))
 
@@ -146,18 +150,19 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                                                                 nb_batches=populate_batches, scale_factor=scale_factor)
 
     ''' Prepare Models '''
-    colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
+    colorizer = get_colorizer(colorizer_model_path=colorizer_model_path, image_size=image_size,
+                              vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
                               train_feature_extractor=train_feature_extractor,
-                              colorizer_model_path=colorizer_model_path)
+                              classifier=classifier, classes_per_pixel=data_mapper.nb_classes if classifier else 0)
     critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9), loss=wasserstein_loss)
     combined = get_combined_gan(classifier=classifier, color_space=color_space, generator=colorizer, critic=critic,
                                 input_shape=(image_size, image_size, 1),
                                 include_colorizer_output=include_target_image,
-                                class_to_color=data_mapper.class_to_color,
-                                scale_factor=scale_factor)
+                                class_to_color=data_mapper.class_to_color)
     combined.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9),
-                     loss=[wasserstein_loss, 'mse'] if include_target_image else [wasserstein_loss])
+                     loss=[wasserstein_loss, 'categorical_crossentropy' if classifier else 'mse'] if include_target_image
+                     else [wasserstein_loss])
 
     ''' View summary of the models '''
     print('\n\n\n\nColorizer:'),    colorizer.summary()
@@ -170,7 +175,8 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
               data_mapper=data_mapper,
               logger=logger,
               models_save_dir=models_save_dir,
-              colored_images_save_dir=colored_images_save_dir)
+              colored_images_save_dir=colored_images_save_dir,
+              classifier=classifier)
     gym.train(loss_threshold=loss_threshold,
               eval_interval=eval_interval, epochs=epochs,
               include_target_image=include_target_image)

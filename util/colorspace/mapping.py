@@ -101,8 +101,7 @@ class LabClassMapper(LabMapper):
     def rgb_to_target_pairs(self, rgb_image):
         lab = rgb2lab(rgb_image.copy() / 255.)
         ab = lab[:, :, 1:]
-        ab /= self.factor
-        res = np.round(ab)
+        res = np.round(ab / self.factor) * self.factor
         return res.astype(np.int32)
 
     def rgb_to_classes(self, rgb_image):
@@ -118,7 +117,8 @@ class LabClassMapper(LabMapper):
                 target_color = ab[r][c]
                 for i in range(-1, 1):
                     for j in range(-1, 1):
-                        neighbour_color = (target_color[0] + i, target_color[1] + j)
+                        neighbour_color = (target_color[0] + int(i * self.factor),
+                                           target_color[1] + int(j * self.factor))
                         if neighbour_color not in self.color_to_class:
                             continue
                         neighbour_class = self.color_to_class[neighbour_color]
