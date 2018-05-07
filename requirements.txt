@@ -1,3 +1,4 @@
+tqdm
 fire
 scikit-image
 scipy
