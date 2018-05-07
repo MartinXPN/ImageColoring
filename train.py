@@ -13,8 +13,8 @@ from scipy.misc import imsave
 
 from models.colorizer import get_colorizer
 from models.critic import Critic
-from models.gan import CombinedGan
-from util.colorspace.mapping import get_mapper
+from models.gan import get_combined_gan
+from util.colorspace.initialize import get_mapping_with_class_weights
 
 
 def wasserstein_loss(target, output):
@@ -132,10 +132,18 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
          train_data_dir='/mnt/bolbol/raw-data/train',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
+         classifier=False, populate_batches=1000, scale_factor=9.,
          colorizer_model_path=None,
          include_target_image=False):
     """ Train Wasserstein gan to colorize black and white images """
-    data_mapper = get_mapper(color_space)
+    ''' Prepare data generators '''
+    image_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
+                                                               target_size=(image_size, image_size),
+                                                               batch_size=batch_size,
+                                                               color_mode='rgb', class_mode=None)
+    data_mapper, class_weights = get_mapping_with_class_weights(classifier=classifier, color_space=color_space,
+                                                                image_generator=image_generator, image_size=image_size,
+                                                                nb_batches=populate_batches, scale_factor=scale_factor)
 
     ''' Prepare Models '''
     colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
@@ -143,9 +151,11 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                               colorizer_model_path=colorizer_model_path)
     critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9), loss=wasserstein_loss)
-    combined = CombinedGan(generator=colorizer, critic=critic,
-                           input_shape=(image_size, image_size, 1),
-                           include_colorizer_output=include_target_image)
+    combined = get_combined_gan(classifier=classifier, color_space=color_space, generator=colorizer, critic=critic,
+                                input_shape=(image_size, image_size, 1),
+                                include_colorizer_output=include_target_image,
+                                class_to_color=data_mapper.class_to_color,
+                                scale_factor=scale_factor)
     combined.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9),
                      loss=[wasserstein_loss, 'mse'] if include_target_image else [wasserstein_loss])
 
@@ -153,13 +163,6 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     print('\n\n\n\nColorizer:'),    colorizer.summary()
     print('\n\n\n\nCritic:'),       critic.summary()
     print('\n\n\n\nCombined:'),     combined.summary()
-
-    ''' Prepare data generators '''
-    image_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
-                                                               target_size=(image_size, image_size),
-                                                               batch_size=batch_size,
-                                                               color_mode='rgb',
-                                                               class_mode=None)
 
     logger = keras.callbacks.TensorBoard(log_dir=log_dir) if K.backend() == 'tensorflow' else Callback()
     gym = Gym(generator=colorizer, critic=critic, combined=combined,
