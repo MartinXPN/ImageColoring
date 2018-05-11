@@ -147,7 +147,8 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                                                                color_mode='rgb', class_mode=None)
     data_mapper, class_weights = get_mapping_with_class_weights(classifier=classifier, color_space=color_space,
                                                                 image_generator=image_generator, image_size=image_size,
-                                                                nb_batches=populate_batches, scale_factor=scale_factor)
+                                                                nb_batches=populate_batches, scale_factor=scale_factor,
+                                                                calculate_weights=False)
 
     ''' Prepare Models '''
     colorizer = get_colorizer(colorizer_model_path=colorizer_model_path, image_size=image_size,

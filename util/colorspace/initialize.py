@@ -1,8 +1,11 @@
+import os
+
 from util.colorspace.colorspaceclasses import ColorMappingInitializer, ColorFrequencyCalculator
 from util.colorspace.mapping import get_mapper
 
 
-def get_mapping_with_class_weights(classifier, color_space, image_generator, image_size, nb_batches, scale_factor):
+def get_mapping_with_class_weights(classifier, color_space, image_generator, image_size, nb_batches, scale_factor,
+                                   weights_file_path=None, calculate_weights=True):
     class_weights = None
     if classifier:
         mapping = ColorMappingInitializer(scale_factor=scale_factor)
@@ -15,8 +18,18 @@ def get_mapping_with_class_weights(classifier, color_space, image_generator, ima
                                                            rgb_image_to_classes=data_mapper.rgb_to_classes,
                                                            image_generator=image_generator,
                                                            image_size=image_size)
-        class_weight_calculator.populate(num_batches=nb_batches)
-        class_weights = class_weight_calculator.get_class_weights()
+        if not calculate_weights:
+            pass
+        elif weights_file_path:
+            if os.path.exists(weights_file_path):
+                class_weights = class_weight_calculator.load_weights(weights_file_path)
+            else:
+                class_weight_calculator.populate(num_batches=nb_batches)
+                class_weights = class_weight_calculator.get_class_weights()
+                class_weight_calculator.save_weights(weights_file_path)
+        else:
+            class_weight_calculator.populate(num_batches=nb_batches)
+            class_weights = class_weight_calculator.get_class_weights()
     else:
         data_mapper = get_mapper(color_space=color_space, classifier=classifier)
 

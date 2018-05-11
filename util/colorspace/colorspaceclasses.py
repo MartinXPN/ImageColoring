@@ -57,6 +57,7 @@ class ColorFrequencyCalculator(object):
         shape = (self.image_size, self.image_size, len(self.class_to_color))
         self.pixel_class_count = np.zeros(shape=shape)
         self.class_count = np.zeros(shape=(len(self.class_to_color),))
+        self.weights = None
 
     def populate_classes(self, rgb_image):
         image_classes = self.rgb_image_to_classes(rgb_image)
@@ -72,8 +73,7 @@ class ColorFrequencyCalculator(object):
             for rgb_image in next(self.image_generator):
                 self.populate_classes(rgb_image)
 
-    def get_class_weights(self, balance_factor=0.5):
-        print('Calculating class weights...')
+    def calculate_class_weights(self, balance_factor=0.5):
         weights = np.zeros(shape=self.pixel_class_count.shape)
         for r in range(self.pixel_class_count.shape[0]):
             for c in range(self.pixel_class_count.shape[1]):
@@ -82,4 +82,20 @@ class ColorFrequencyCalculator(object):
                 class_prob = balance_factor / len(self.class_to_color)  # Class probability in uniform distribution
 
                 weights[r][c] = 1. / (data_prob + class_prob)
+        self.weights = weights
         return weights
+
+    def save_weights(self, weights_file_path):
+        print('Saving class weights to:', weights_file_path)
+        np.save(file=weights_file_path, arr=self.weights)
+
+    def load_weights(self, weights_file_path):
+        print('Loading class weights from:', weights_file_path)
+        self.weights = np.load(weights_file_path)
+        return self.weights
+
+    def get_class_weights(self, balance_factor=0.5, weights_file_path=None):
+        print('Calculating class weights...')
+        if weights_file_path is not None:   return self.load_weights(weights_file_path)
+        if self.weights is not None:        return self.weights
+        return self.calculate_class_weights(balance_factor=balance_factor)
