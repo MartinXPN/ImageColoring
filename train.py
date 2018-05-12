@@ -15,6 +15,7 @@ from models.colorizer import get_colorizer
 from models.critic import Critic
 from models.gan import get_combined_gan
 from util.colorspace.initialize import get_mapping_with_class_weights
+from util.data import ImageGenerator
 
 
 def wasserstein_loss(target, output):
@@ -24,20 +25,28 @@ def wasserstein_loss(target, output):
 class Gym(object):
     def __init__(self,
                  generator, critic, combined,
-                 image_generator, data_mapper, logger,
+                 gray_image_generator, real_image_generator, gray_with_target_generator, test_data_generator,
+                 data_mapper, logger,
                  models_save_dir, colored_images_save_dir,
                  classifier=False):
+        """ Gym to train models """
 
+        ''' Models '''
         self.generator = generator
         self.critic = critic
         self.combined = combined
 
         ''' Data '''
-        self.image_generator = image_generator
+        self.gray_image_generator = gray_image_generator
+        self.real_image_generator = real_image_generator
+        self.gray_with_target_generator = gray_with_target_generator
+        self.test_data_generator = test_data_generator
+
         self.data_mapper = data_mapper
         self.class_to_color = data_mapper.class_to_color
         self.classifier = classifier
 
+        ''' Paths and logs '''
         self.model_save_dir = models_save_dir
         self.colored_images_save_dir = colored_images_save_dir
         if not os.path.exists(self.model_save_dir):             os.mkdir(self.model_save_dir)
@@ -51,42 +60,36 @@ class Gym(object):
         def train_critic_real():
             """ Train critic on real data """
             train_critic_real.steps += 1
-            rgb_images = next(self.image_generator)
-            real_images = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_target_image)
+            real_images = next(self.real_image_generator)
             real_labels = -np.ones(shape=len(real_images))
 
             loss = self.critic.train_on_batch(x=real_images, y=real_labels)
-            self.logger.on_epoch_end(epoch=train_critic_real.steps,
-                                     logs={'Critic loss on real data': loss})
+            self.logger.on_epoch_end(epoch=train_critic_real.steps, logs={'Critic loss on real data': loss})
             print('Loss on real data:', loss)
             return loss
 
         def train_critic_fake():
             """ Train critic on fake data """
             train_critic_fake.steps += 1
-            rgb_images = next(self.image_generator)
-            gray = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_colorizer_input)
-            colors = self.generator.predict(gray)
+            gray_images = next(self.gray_image_generator)
+            colors = self.generator.predict(gray_images)
             colors = np.dot(colors, self.class_to_color) if self.classifier else colors  # map classes to colors
-            fake_images = np.concatenate((gray, colors), axis=3)
+            fake_images = np.concatenate((gray_images, colors), axis=3)
             fake_labels = np.ones(shape=len(colors))
 
             loss = self.critic.train_on_batch(x=fake_images, y=fake_labels)
-            self.logger.on_epoch_end(epoch=train_critic_fake.steps,
-                                     logs={'Critic loss on fake data': loss})
+            self.logger.on_epoch_end(epoch=train_critic_fake.steps, logs={'Critic loss on fake data': loss})
             print('Loss on fake data:', loss)
             return loss
 
         def train_generator_fool_critic():
             """ Train generator to fool the critic """
             train_generator_fool_critic.steps += 1
-            rgb_images = next(self.image_generator)
-            fool_inputs, target_images = self.data_mapper.map(rgb_images, [self.data_mapper.rgb_to_colorizer_input,
-                                                                           self.data_mapper.rgb_to_colorizer_target])
-            fool_labels = -np.ones(shape=len(fool_inputs))
+            gray_images, target_images = next(self.gray_with_target_generator)
+            fool_labels = -np.ones(shape=len(gray_images))
 
             # [sum, loss, l1_loss] or loss
-            loss = self.combined.train_on_batch(x=fool_inputs,
+            loss = self.combined.train_on_batch(x=gray_images,
                                                 y=[fool_labels, target_images] if include_target_image else fool_labels)
             self.logger.on_epoch_end(epoch=train_generator_fool_critic.steps,
                                      logs={'Fool critic loss': loss[1], 'Target image difference loss': loss[2]}  if include_target_image else
@@ -119,15 +122,13 @@ class Gym(object):
 
     def evaluate(self, epoch):
         print('Evaluating epoch {} ...'.format(epoch), end='\t')
-        rgb_images = next(self.image_generator)
-        print(rgb_images.shape)
-        input_images = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_colorizer_input)
+        input_images, rgb_images = next(self.test_data_generator)
         colored_images = self.generator.predict(input_images)
 
-        for i, image in enumerate(colored_images):
-            rgb_prediction = self.data_mapper.network_prediction_to_rgb(prediction=colored_images[i], inputs=input_images[i])
+        for i, (colored_image, input_image, rgb_image) in enumerate(zip(colored_images, input_images, rgb_images)):
+            rgb_prediction = self.data_mapper.network_prediction_to_rgb(prediction=colored_image, inputs=input_image)
             imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-colored.jpg'.format(epoch, i)), arr=rgb_prediction)
-            imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-target.jpg'.format(epoch, i)), arr=rgb_images[i])
+            imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-target.jpg'.format(epoch, i)), arr=rgb_image)
         self.generator.save(filepath=os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
         print('Done!')
 
@@ -149,6 +150,10 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                                                                 image_generator=image_generator, image_size=image_size,
                                                                 nb_batches=populate_batches, scale_factor=scale_factor,
                                                                 calculate_weights=False)
+    gray_image_generator =       ImageGenerator(rgb_generator=image_generator, input_processing_function=data_mapper.rgb_to_colorizer_input)
+    real_image_generator =       ImageGenerator(rgb_generator=image_generator, input_processing_function=data_mapper.rgb_to_target_image)
+    gray_with_target_generator = ImageGenerator(rgb_generator=image_generator, input_processing_function=data_mapper.rgb_to_colorizer_input, label_processing_function=data_mapper.rgb_to_colorizer_target)
+    test_data_generator =        ImageGenerator(rgb_generator=image_generator, input_processing_function=data_mapper.rgb_to_colorizer_input, label_processing_function=lambda x: x)
 
     ''' Prepare Models '''
     colorizer = get_colorizer(colorizer_model_path=colorizer_model_path, image_size=image_size,
@@ -172,7 +177,10 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
 
     logger = keras.callbacks.TensorBoard(log_dir=log_dir) if K.backend() == 'tensorflow' else Callback()
     gym = Gym(generator=colorizer, critic=critic, combined=combined,
-              image_generator=image_generator,
+              gray_image_generator=gray_image_generator,
+              real_image_generator=real_image_generator,
+              gray_with_target_generator=gray_with_target_generator,
+              test_data_generator=test_data_generator,
               data_mapper=data_mapper,
               logger=logger,
               models_save_dir=models_save_dir,

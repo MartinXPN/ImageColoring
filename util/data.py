@@ -7,7 +7,7 @@ class ImageGenerator(object):
                  input_processing_function=lambda x: x,
                  label_processing_function=lambda x: None,
                  use_multiprocessing=False, wait_time=0.01,
-                 workers=1, max_queue_size=10):
+                 workers=4, max_queue_size=10):
         class BatchGenerator(object):
             def __next__(self):
                 rgb_images = next(rgb_generator)
