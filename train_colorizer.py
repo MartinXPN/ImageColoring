@@ -17,12 +17,13 @@ from util.data import ImageGenerator
 
 class Gym(object):
     def __init__(self,
-                 colorizer, data_generator, data_mapper,
+                 colorizer, data_generator, test_data_generator, data_mapper,
                  logger, models_save_dir, colored_images_save_dir,
                  class_weights=None):
 
         self.colorizer = colorizer
         self.data_generator = data_generator
+        self.test_data_generator = test_data_generator
         self.data_mapper = data_mapper
 
         self.model_save_dir = models_save_dir
@@ -47,41 +48,35 @@ class Gym(object):
 
     def evaluate(self, epoch):
         print('Evaluating epoch {} ...'.format(epoch), end='\t')
-        # input_images, target_images = next(self.data_generator)
-        rgb_images = next(self.data_generator)
-        input_images = self.data_mapper.map(rgb_images, self.data_mapper.rgb_to_colorizer_input)
+        input_images, rgb_images = next(self.test_data_generator)
         colored_images = self.colorizer.predict(input_images)
 
-        for i, image in enumerate(colored_images):
-            rgb_prediction = self.data_mapper.network_prediction_to_rgb(prediction=colored_images[i], inputs=input_images[i])
+        for i, (colored_image, input_image, rgb_image) in enumerate(zip(colored_images, input_images, rgb_images)):
+            rgb_prediction = self.data_mapper.network_prediction_to_rgb(prediction=colored_image, inputs=input_image)
             imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-colored.jpg'.format(epoch, i)), arr=rgb_prediction)
-            imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-target.jpg'.format(epoch, i)), arr=rgb_images[i])
+            imsave(name=os.path.join(self.colored_images_save_dir, 'epoch-{}-{}-target.jpg'.format(epoch, i)), arr=rgb_image)
         self.colorizer.save(filepath=os.path.join(self.model_save_dir, 'epoch={}.hdf5'.format(epoch)))
         print('Done!')
 
 
 def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, color_space='yuv',
-         train_data_dir='/mnt/bolbol/raw-data/train', valid_data_dir='/mnt/bolbol/raw-data/validation',
+         train_data_dir='/mnt/bolbol/raw-data/train', test_data_dir='/mnt/bolbol/raw-data/validation',
          log_dir='logs', models_save_dir='coloring_models', colored_images_save_dir='colored_images',
          classifier=False, populate_batches=1000, scale_factor=9., weights_file_path=None,
          vgg=False, feature_extractor_model_path=None, train_feature_extractor=False):
     """ Train only colorizer on target images """
 
     ''' Prepare data generators '''
-    rgb_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
-                                                             target_size=(image_size, image_size),
-                                                             batch_size=batch_size,
-                                                             color_mode='rgb',
-                                                             class_mode=None)
+    train_data_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir, target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
+    test_data_generator = ImageDataGenerator().flow_from_directory(directory=test_data_dir, target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
     data_mapper, class_weights = get_mapping_with_class_weights(classifier=classifier, color_space=color_space,
-                                                                image_generator=rgb_generator, image_size=image_size,
+                                                                image_generator=train_data_generator,
+                                                                image_size=image_size,
                                                                 nb_batches=populate_batches, scale_factor=scale_factor,
                                                                 weights_file_path=weights_file_path)
-    train_data_generator = ImageGenerator(rgb_generator=rgb_generator,
-                                          input_processing_function=data_mapper.rgb_to_colorizer_input,
-                                          label_processing_function=data_mapper.rgb_to_colorizer_target,
-                                          use_multiprocessing=True,
-                                          workers=2)
+
+    train_data_generator = ImageGenerator(rgb_generator=train_data_generator, input_processing_function=data_mapper.rgb_to_colorizer_input, label_processing_function=data_mapper.rgb_to_colorizer_target, workers=4)
+    test_data_generator = ImageGenerator(rgb_generator=test_data_generator, input_processing_function=data_mapper.rgb_to_colorizer_input, label_processing_function=lambda x: x, workers=4)
     ''' Prepare Models '''
     colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
                               train_feature_extractor=train_feature_extractor,
@@ -95,6 +90,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, colo
     logger = keras.callbacks.TensorBoard(log_dir=log_dir) if K.backend() == 'tensorflow' else Callback()
     gym = Gym(colorizer=colorizer,
               data_generator=train_data_generator,
+              test_data_generator=test_data_generator,
               data_mapper=data_mapper,
               logger=logger,
               models_save_dir=models_save_dir,

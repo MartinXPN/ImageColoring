@@ -1,3 +1,4 @@
+import numpy as np
 from keras.utils import GeneratorEnqueuer
 
 
@@ -10,9 +11,17 @@ class ImageGenerator(object):
         class BatchGenerator(object):
             def __next__(self):
                 rgb_images = next(rgb_generator)
-                inputs = input_processing_function(rgb_images)
-                labels = label_processing_function(rgb_images)
-                return inputs if labels is None else inputs, labels
+                inputs, labels = [], []
+                if type(rgb_images) is tuple:
+                    rgb_images, labels = rgb_images
+
+                inputs = np.array([input_processing_function(rgb_image) for rgb_image in rgb_images])
+                if len(labels) == 0:
+                    labels = [label_processing_function(rgb_image) for rgb_image in rgb_images]
+                    labels = [item for item in labels if item is not None]
+
+                if len(labels) == 0:    return np.array(inputs)
+                else:                   return np.array(inputs), np.array(labels)
 
         self.generator = GeneratorEnqueuer(generator=BatchGenerator(),
                                            use_multiprocessing=use_multiprocessing,
