@@ -162,10 +162,10 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                               classifier=classifier, classes_per_pixel=data_mapper.nb_classes if classifier else 0)
     critic = Critic(input_shape=(image_size, image_size, 3))
     critic.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9), loss=wasserstein_loss)
-    combined = get_combined_gan(classifier=classifier, color_space=color_space, generator=colorizer, critic=critic,
+    combined = get_combined_gan(classifier=classifier, class_to_color=data_mapper.class_to_color,
+                                generator=colorizer, critic=critic,
                                 input_shape=(image_size, image_size, 1),
-                                include_colorizer_output=include_target_image,
-                                class_to_color=data_mapper.class_to_color)
+                                include_colorizer_output=include_target_image)
     combined.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9),
                      loss=[wasserstein_loss, 'categorical_crossentropy' if classifier else 'mse'] if include_target_image
                      else [wasserstein_loss])

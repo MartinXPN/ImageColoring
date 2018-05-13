@@ -29,31 +29,24 @@ class CombinedGan(Model):
         return Concatenate()([gray, colorizer_output])
 
 
-class LabClassCombinedGan(CombinedGan):
-    def __init__(self, generator=None, critic=None, input_shape=(224, 224, 1), include_colorizer_output=True,
-                 class_to_color=None,
-                 inputs=None, outputs=None, name='Combined'):
+class ClassifierCombinedGan(CombinedGan):
+    def __init__(self, class_to_color=None, **kwargs):
         self.class_to_color = K.variable(class_to_color)
-        super(LabClassCombinedGan, self).__init__(generator=generator, critic=critic,
-                                                  input_shape=input_shape,
-                                                  include_colorizer_output=include_colorizer_output,
-                                                  inputs=inputs, outputs=outputs, name=name)
+        super(ClassifierCombinedGan, self).__init__(**kwargs)
 
     def colorizer_output_to_critic_input(self, gray, colorizer_output):
         colorizer_output = Lambda(lambda x: K.dot(x, self.class_to_color))(colorizer_output)
         return Concatenate()([gray, colorizer_output])
 
 
-def get_combined_gan(classifier, color_space='lab',
+def get_combined_gan(classifier, class_to_color=None,
                      generator=None, critic=None,
-                     input_shape=(224, 224, 1),  include_colorizer_output=True,
-                     class_to_color=None):
+                     input_shape=(224, 224, 1),  include_colorizer_output=True):
     if classifier:
-        if color_space == 'lab':    return LabClassCombinedGan(generator=generator, critic=critic,
-                                                               input_shape=input_shape,
-                                                               include_colorizer_output=include_colorizer_output,
-                                                               class_to_color=class_to_color)
-        raise NotImplementedError('Could not find an implementation for specified color space')
+        return ClassifierCombinedGan(generator=generator, critic=critic,
+                                     input_shape=input_shape,
+                                     include_colorizer_output=include_colorizer_output,
+                                     class_to_color=class_to_color)
     else:
         return CombinedGan(generator=generator, critic=critic, input_shape=input_shape,
                            include_colorizer_output=include_colorizer_output)
