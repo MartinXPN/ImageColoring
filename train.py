@@ -1,10 +1,10 @@
 from __future__ import print_function
 
 import os
+
 import fire
 import keras
 import numpy as np
-
 from keras import backend as K
 from keras.callbacks import Callback
 from keras.optimizers import Adam

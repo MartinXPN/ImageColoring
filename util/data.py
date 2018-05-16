@@ -9,6 +9,9 @@ class ImageGenerator(object):
                  use_multiprocessing=False, wait_time=0.01,
                  workers=4, max_queue_size=10):
         class BatchGenerator(object):
+            def __iter__(self):
+                return self
+
             def __next__(self):
                 rgb_images = next(rgb_generator)
                 inputs, labels = [], []
@@ -23,10 +26,19 @@ class ImageGenerator(object):
                 if len(labels) == 0:    return np.array(inputs)
                 else:                   return np.array(inputs), np.array(labels)
 
+            # Python2 compatibility
+            next = __next__
+
         self.generator = GeneratorEnqueuer(generator=BatchGenerator(),
                                            use_multiprocessing=use_multiprocessing,
                                            wait_time=wait_time)
         self.generator.start(workers=workers, max_queue_size=max_queue_size)
 
+    def __iter__(self):
+        return self
+
     def __next__(self):
         return next(self.generator.get())
+
+    # Python2 compatibility
+    next = __next__
