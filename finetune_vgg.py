@@ -32,7 +32,7 @@ def main(batch_size=8, epochs=300, images_per_epoch=8192, validation_images=1024
 
     needed_layers = vgg.layers[2:]
     model = Sequential()
-    model.add(InputLayer(input_shape=(image_size, image_size, 1), name='L'))
+    model.add(InputLayer(input_shape=(image_size, image_size, 1), name='gray'))
     model.add(Conv2D(filters=64, kernel_size=3, padding='same'))
     for layer in needed_layers:
         model.add(layer)
@@ -50,7 +50,7 @@ def main(batch_size=8, epochs=300, images_per_epoch=8192, validation_images=1024
     valid_generator = ImageGenerator(rgb_generator=valid_generator, workers=4, input_processing_function=data_mapper.rgb_to_colorizer_input)
 
     # Configure model checkpoints
-    model_save_path = os.path.join(model_save_dir, 'vgg-{epoch:02d}-{val_loss:.2f}.hdf5')
+    model_save_path = os.path.join(model_save_dir, 'vgg-{epoch:02d}-{val_acc:.2f}-{val_loss:.2f}.hdf5')
     if not os.path.exists(model_save_dir):
         os.mkdir(model_save_dir)
 
@@ -61,7 +61,7 @@ def main(batch_size=8, epochs=300, images_per_epoch=8192, validation_images=1024
                         validation_data=valid_generator,
                         validation_steps=validation_images // batch_size,
                         callbacks=[EarlyStopping(patience=5),
-                                   ModelCheckpoint(filepath=model_save_path)])
+                                   ModelCheckpoint(filepath=model_save_path, monitor='val_acc', save_best_only=True)])
 
 
 if __name__ == '__main__':
