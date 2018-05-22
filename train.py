@@ -143,6 +143,7 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     """ Train Wasserstein gan to colorize black and white images """
     ''' Prepare data generators '''
     image_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
+                                                               interpolation='bilinear',
                                                                target_size=(image_size, image_size),
                                                                batch_size=batch_size,
                                                                color_mode='rgb', class_mode=None)

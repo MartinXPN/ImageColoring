@@ -39,10 +39,12 @@ def main(batch_size=8, epochs=300, images_per_epoch=8192, validation_images=1024
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     model.summary()
     train_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir,
+                                                               interpolation='bilinear',
                                                                target_size=(image_size, image_size),
                                                                batch_size=batch_size,
                                                                color_mode='rgb', class_mode='sparse')
     valid_generator = ImageDataGenerator().flow_from_directory(directory=valid_data_dir,
+                                                               interpolation='bilinear',
                                                                target_size=(image_size, image_size),
                                                                batch_size=batch_size,
                                                                color_mode='rgb', class_mode='sparse')
