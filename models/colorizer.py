@@ -27,7 +27,7 @@ class Colorizer(Model):
             concat_layers.append(x)
             for i in range(num_layers):
                 x = Conv2D(filters=filters, kernel_size=3, activation=None, padding='same')(x)
-                x = PReLU()(x)
+                x = PReLU(shared_axes=[1, 2])(x)
             x = Conv2D(filters=filters // 4, kernel_size=3, strides=2, padding='same')(x)
         return x, concat_layers[::-1]
 
@@ -36,7 +36,7 @@ class Colorizer(Model):
         for filters, concat_layer, num_layers in zip([256, 256, 128, 64, 32], concat_layers, [2, 2, 2, 2, 2]):
             for i in range(num_layers):
                 x = Conv2D(filters, kernel_size=3, activation=None, padding='same')(x)
-                x = PReLU()(x)
+                x = PReLU(shared_axes=[1, 2])(x)
             # x = SubpixelUpSampling(filters=filters, kernel_size=3, ratio=2, padding='same')(x)
             # x = Conv2DTranspose(filters=filters, kernel_size=3)(x)
             x = UpSampling2D(size=2)(x)
@@ -47,7 +47,7 @@ class Colorizer(Model):
     def construct_post_process_trunk(x):
         for filters in [64, 64, 32]:
             x = Conv2D(filters, kernel_size=3, activation=None, padding='same')(x)
-            x = PReLU()(x)
+            x = PReLU(shared_axes=[1, 2])(x)
         x = Conv2D(2, kernel_size=3, activation='tanh', padding='same', name='out')(x)
         return x
 
@@ -95,7 +95,7 @@ class VGGClassificationColorizer(VGGColorizer):
         concat = x
         for filters in [64, 64]:
             x = Conv2D(filters, kernel_size=3, activation=None, padding='same')(concat)
-            x = PReLU()(x)
+            x = PReLU(shared_axes=[1, 2])(x)
             concat = x  # Concatenate()([concat, x])
 
         x = concat
@@ -105,7 +105,7 @@ class VGGClassificationColorizer(VGGColorizer):
 
 
 def get_colorizer(colorizer_model_path=None,
-                  image_size=224, vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
+                  image_size=None, vgg=False, feature_extractor_model_path=None, train_feature_extractor=False,
                   classifier=False, classes_per_pixel=300):
     if colorizer_model_path:
         return load_model(filepath=colorizer_model_path, compile=False,

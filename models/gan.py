@@ -5,7 +5,7 @@ from keras.layers import Concatenate, Lambda
 
 
 class CombinedGan(Model):
-    def __init__(self, generator=None, critic=None, input_shape=(224, 224, 1), include_colorizer_output=True,
+    def __init__(self, generator=None, critic=None, input_shape=(None, None, 1), include_colorizer_output=True,
                  inputs=None, outputs=None, name='Combined'):
         if inputs and outputs:
             super(CombinedGan, self).__init__(inputs=inputs, outputs=outputs, name=name)
@@ -41,7 +41,8 @@ class ClassifierCombinedGan(CombinedGan):
 
 def get_combined_gan(classifier, class_to_color=None,
                      generator=None, critic=None,
-                     input_shape=(224, 224, 1),  include_colorizer_output=True):
+                     image_size=224, include_colorizer_output=True):
+    input_shape = (image_size, image_size, 1)
     if classifier:
         return ClassifierCombinedGan(generator=generator, critic=critic,
                                      input_shape=input_shape,

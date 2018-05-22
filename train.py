@@ -12,7 +12,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from scipy.misc import imsave
 
 from models.colorizer import get_colorizer
-from models.critic import Critic
+from models.critic import get_critic
 from models.gan import get_combined_gan
 from util.colorspace.initialize import get_mapping_with_class_weights
 from util.data import ImageGenerator
@@ -156,15 +156,15 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
     test_data_generator =        ImageGenerator(rgb_generator=image_generator, input_processing_function=data_mapper.rgb_to_colorizer_input, label_processing_function=lambda x: x)
 
     ''' Prepare Models '''
-    colorizer = get_colorizer(colorizer_model_path=colorizer_model_path, image_size=image_size,
+    colorizer = get_colorizer(colorizer_model_path=colorizer_model_path, image_size=None,
                               vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
                               train_feature_extractor=train_feature_extractor,
                               classifier=classifier, classes_per_pixel=data_mapper.nb_classes if classifier else 0)
-    critic = Critic(input_shape=(image_size, image_size, 3))
+    critic = get_critic(image_size=image_size)
     critic.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9), loss=wasserstein_loss)
     combined = get_combined_gan(classifier=classifier, class_to_color=data_mapper.class_to_color,
                                 generator=colorizer, critic=critic,
-                                input_shape=(image_size, image_size, 1),
+                                image_size=image_size,
                                 include_colorizer_output=include_target_image)
     combined.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9),
                      loss=[wasserstein_loss, 'categorical_crossentropy' if classifier else 'mse'] if include_target_image

@@ -15,12 +15,12 @@ def Conv2DBatchNormPReLU(input_layer,
                  kernel_initializer=weight_init,
                  kernel_constraint=WeightClip(-0.01, 0.01), bias_constraint=WeightClip(-0.01, 0.01))(res)
     res = BatchNormalization()(res)
-    res = PReLU()(res)
+    res = PReLU(shared_axes=[1, 2])(res)
     return res
 
 
 class Critic(Model):
-    def __init__(self, input_shape=(224, 224, 3),
+    def __init__(self, input_shape=(224, 224, 3), output_activation=None,
                  inputs=None, outputs=None, name='Critic'):
         if inputs and outputs:
             super(Critic, self).__init__(inputs=inputs, outputs=outputs, name=name)
@@ -45,5 +45,9 @@ class Critic(Model):
             x = PReLU()(x)
             x = Dropout(rate=0.1)(x)
 
-        out = Dense(1, activation=None)(x)
+        out = Dense(1, activation=output_activation)(x)
         super(Critic, self).__init__(inputs=input_image, outputs=out, name=name)
+
+
+def get_critic(image_size=224, output_activation=None):
+    return Critic(input_shape=(image_size, image_size, 3), output_activation=output_activation)

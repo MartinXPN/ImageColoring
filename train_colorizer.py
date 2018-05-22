@@ -57,7 +57,7 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, vali
     valid_data_generator = ImageGenerator(rgb_generator=valid_data_generator, input_processing_function=data_mapper.rgb_to_colorizer_input, label_processing_function=data_mapper.rgb_to_colorizer_target)
     test_data_generator = ImageGenerator(rgb_generator=test_data_generator, input_processing_function=data_mapper.rgb_to_colorizer_input, label_processing_function=lambda x: x)
     ''' Prepare Models '''
-    colorizer = get_colorizer(image_size=image_size, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
+    colorizer = get_colorizer(image_size=None, vgg=vgg, feature_extractor_model_path=feature_extractor_model_path,
                               train_feature_extractor=train_feature_extractor,
                               classifier=classifier,
                               classes_per_pixel=class_weights.shape[-1] if classifier else 0)
