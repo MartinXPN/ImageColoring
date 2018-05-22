@@ -44,9 +44,9 @@ def main(batch_size=32, image_size=224, epochs=100000, steps_per_epoch=100, vali
     """ Train only colorizer on target images """
 
     ''' Prepare data generators '''
-    train_data_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir, target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
-    valid_data_generator = ImageDataGenerator().flow_from_directory(directory=test_data_dir, target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
-    test_data_generator = ImageDataGenerator().flow_from_directory(directory=test_data_dir, target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
+    train_data_generator = ImageDataGenerator().flow_from_directory(directory=train_data_dir, interpolation='bilinear', target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
+    valid_data_generator = ImageDataGenerator().flow_from_directory(directory=test_data_dir, interpolation='bilinear', target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
+    test_data_generator = ImageDataGenerator().flow_from_directory(directory=test_data_dir, interpolation='bilinear', target_size=(image_size, image_size), batch_size=batch_size, color_mode='rgb', class_mode=None)
     data_mapper, class_weights = get_mapping_with_class_weights(classifier=classifier, color_space=color_space,
                                                                 image_generator=train_data_generator,
                                                                 image_size=image_size,
