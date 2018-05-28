@@ -43,7 +43,7 @@ class Gym(object):
         self.test_data_generator = test_data_generator
 
         self.data_mapper = data_mapper
-        self.class_to_color = data_mapper.class_to_color
+        self.class_to_color = data_mapper.class_to_color if classifier else None
         self.classifier = classifier
 
         ''' Paths and logs '''
