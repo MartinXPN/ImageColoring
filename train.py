@@ -163,7 +163,7 @@ def main(batch_size=32, eval_interval=10, epochs=100000, image_size=224, loss_th
                               classifier=classifier, classes_per_pixel=data_mapper.nb_classes if classifier else 0)
     critic = get_critic(image_size=image_size)
     critic.compile(optimizer=Adam(lr=0.00001, beta_1=0.5, beta_2=0.9), loss=wasserstein_loss)
-    combined = get_combined_gan(classifier=classifier, class_to_color=data_mapper.class_to_color,
+    combined = get_combined_gan(classifier=classifier, class_to_color=data_mapper.class_to_color if classifier else None,
                                 generator=colorizer, critic=critic,
                                 image_size=image_size,
                                 include_colorizer_output=include_target_image)
